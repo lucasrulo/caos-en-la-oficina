@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Office Chaos: Firebase Ultimate</title>
+    <title>Office Chaos: Firebase Ultimate Edition</title>
     
     <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-database-compat.js"></script>
@@ -117,12 +117,12 @@
 
     <script>
         // ==========================================
-        // 1. CONFIGURACIÓN DE FIREBASE
+        // 1. CONFIGURACIÓN DE FIREBASE (YA INYECTADA)
         // ==========================================
         const firebaseConfig = {
             apiKey: "AIzaSyDxMYI0Q0ICvf7XM-VxMIs08wqaOTSOxBY",
             authDomain: "caos-oficina.firebaseapp.com",
-            databaseURL: "https://caos-oficina-default-rtdb.firebaseio.com", 
+            databaseURL: "https://caos-oficina-default-rtdb.firebaseio.com",
             projectId: "caos-oficina",
             storageBucket: "caos-oficina.firebasestorage.app",
             messagingSenderId: "301553196610",
@@ -197,9 +197,9 @@
                         if(!localPlayers[id]) { localPlayers[id] = sp; } 
                         else {
                             let tempX = localPlayers[id].x; let tempY = localPlayers[id].y;
-                            Object.assign(localPlayers[id], sp); // Copia todo asegurando que pasen stats, boost y weapons
+                            Object.assign(localPlayers[id], sp);
                             localPlayers[id].dbX = sp.x; localPlayers[id].dbY = sp.y;
-                            localPlayers[id].x = tempX; localPlayers[id].y = tempY; // Mantiene interpolación
+                            localPlayers[id].x = tempX; localPlayers[id].y = tempY;
                         }
                     }
                     for(let id in localPlayers) { if(!serverPlayers[id]) delete localPlayers[id]; }
@@ -251,7 +251,13 @@
 
         window.addEventListener('keydown', e => { if(document.activeElement === document.getElementById('chatInput')) { if(e.key === 'Enter') sendChat(); return; } if(e.key === '1') sendReaction('🤬'); if(e.key === '2') sendReaction('😂'); if(e.key === '3') sendReaction('💀'); if(e.key === '4') sendReaction('🏳️'); });
 
-        if(!isMobile) { window.addEventListener('mousemove', e => { const r = canvas.getBoundingClientRect(); mouseX = (e.clientX - r.left) * (canvas.width / r.width); mouseY = (e.clientY - r.top) * (canvas.height / r.height); }); window.addEventListener('mousedown', () => isShooting = true); window.addEventListener('mouseup', () => isShooting = false); }
+        // Control Mouse PC
+        if(!isMobile) { 
+            window.addEventListener('mousemove', e => { const r = canvas.getBoundingClientRect(); mouseX = (e.clientX - r.left) * (canvas.width / r.width); mouseY = (e.clientY - r.top) * (canvas.height / r.height); }); 
+            window.addEventListener('mousedown', () => isShooting = true); 
+            window.addEventListener('mouseup', () => isShooting = false); 
+            window.addEventListener('mouseleave', () => isShooting = false); // Evita que se trabe el disparo si sacás el mouse
+        }
 
         function setupJoystick(zoneId, knobId, isAim) {
             const zone = document.getElementById(zoneId); const knob = document.getElementById(knobId); let active = false, center = {x:0, y:0};
@@ -298,7 +304,9 @@
                     else if (p.weapon === 'sniper') { bullets.push({x: p.x, y: p.y, angle: a, owner: id, color: "#ffea00", speed: 25, size: 6, damage: 80, penetrate: true}); } 
                     else if (p.weapon === 'boss') { bullets.push({x: p.x, y: p.y, angle: a, owner: id, color: "#ff4444", speed: 10, size: 8, damage: 60, penetrate: true}); } 
                     else { bullets.push({x: p.x, y: p.y, angle: a, owner: id, color: p.color, speed: 15, size: 4, damage: 30}); }
-                    roomRef.child('players/'+id+'/shootAngle').remove(); 
+                    
+                    roomRef.child('players/'+id+'/shootAngle').remove();
+                    p.shootAngle = null; // SOLUCIÓN AL BUG DEL LÁSER INFITO
                 }
             }
 
