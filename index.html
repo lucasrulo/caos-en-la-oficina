@@ -3,30 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Office Chaos: Distrinando Edition</title>
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <title>Office Chaos: Firebase Edition</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-database-compat.js"></script>
+
     <style>
         body { margin: 0; background: #0a0a0a; color: #eee; font-family: 'Segoe UI', sans-serif; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; height: 100vh; touch-action: none; }
         
-        /* UI Superior */
         #ui { width: 100%; background: rgba(15,15,15,0.95); padding: 12px 0; text-align: center; border-bottom: 2px solid #ffcc00; z-index: 10; position: relative; }
         .input-group { display: inline-block; margin: 4px; }
         input, select { padding: 8px; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff; font-size: 13px; outline: none; }
         button { padding: 8px 16px; cursor: pointer; background: #ffcc00; color: #000; border: none; border-radius: 4px; font-weight: bold; text-transform: uppercase; font-size: 12px; }
         button:hover { background: #e6b800; }
 
-        /* Contenedor Principal Responsive */
         #mainContainer { display: flex; gap: 20px; align-items: flex-start; justify-content: center; margin-top: 15px; width: 95%; max-width: 1140px; }
-        
-        /* Canvas Adaptativo */
         .canvas-wrapper { position: relative; width: 100%; max-width: 900px; }
         canvas { width: 100%; height: auto; aspect-ratio: 900 / 550; border: 2px solid #333; cursor: crosshair; box-shadow: 0 10px 30px rgba(0,0,0,0.8); background: #111; border-radius: 8px; }
         
-        #hud { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+        #hud { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; overflow: hidden; border-radius: 8px; }
         #killfeed { position: absolute; top: 10px; right: 10px; display: flex; flex-direction: column; align-items: flex-end; }
         .kf-item { background: rgba(20,20,20,0.8); padding: 4px 8px; margin-bottom: 4px; font-size: 11px; border-radius: 3px; border-left: 2px solid #ff4444; }
 
-        /* Panel Lateral (Ranking + Chat) */
         #sidePanel { background: rgba(15,15,15,0.9); border: 2px solid #333; border-radius: 8px; padding: 12px; width: 220px; height: 100%; min-height: 400px; display: flex; flex-direction: column; box-sizing: border-box; }
         #sidePanel h3 { margin: 0 0 10px 0; color: #ffcc00; font-size: 13px; text-align: center; border-bottom: 1px solid #444; padding-bottom: 8px; }
         #scoreList { flex-grow: 1; overflow-y: auto; margin-bottom: 10px; }
@@ -34,13 +32,11 @@
         .lb-row { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px; padding: 2px 8px; color: #aaa; }
         .lb-dead { opacity: 0.3; text-decoration: line-through; }
 
-        /* Chat */
         #chatBox { display: none; flex-direction: column; height: 150px; background: rgba(0,0,0,0.5); border-radius: 4px; border: 1px solid #444; pointer-events: auto; }
         #chatMessages { flex-grow: 1; overflow-y: auto; padding: 5px; font-size: 11px; display: flex; flex-direction: column; gap: 3px; word-wrap: break-word; }
         .chat-msg { background: rgba(255,255,255,0.1); padding: 4px; border-radius: 3px; }
         #chatInput { width: 100%; border: none; border-top: 1px solid #444; background: rgba(20,20,20,0.9); color: white; padding: 6px; box-sizing: border-box; font-size: 11px; outline: none; border-radius: 0 0 4px 4px; }
 
-        /* Botón Flotante y Panel de Host */
         #hostToggleBtn { position: fixed; bottom: 20px; right: 20px; width: 45px; height: 45px; border-radius: 50%; background: #ffcc00; color: #000; font-size: 22px; border: none; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.5); z-index: 60; display: none; padding: 0; line-height: 45px; text-align: center; }
         #hostSettings { position: fixed; bottom: 75px; right: 20px; background: rgba(0,0,0,0.95); padding: 15px; border-radius: 8px; border: 1px solid #ffcc00; width: 200px; font-size: 11px; display: none; z-index: 55; box-shadow: 0 5px 15px rgba(0,0,0,0.7); }
         #hostSettings label { display: block; margin-top: 8px; color: #aaa; font-weight: bold; }
@@ -48,16 +44,13 @@
 
         #msgOverlay { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(255,0,0,0.9); color: white; padding: 15px 25px; border-radius: 5px; font-weight: bold; display: none; z-index: 100; text-align: center; box-shadow: 0 0 20px rgba(255,0,0,0.5); }
         
-        /* Mobile Controls */
         #mobileControls { position: fixed; bottom: 15px; left: 0; width: 100%; height: 110px; display: none; justify-content: space-between; padding: 0 20px; box-sizing: border-box; z-index: 50; pointer-events: none; }
         .joystick-zone { width: 100px; height: 100px; background: rgba(255,255,255,0.1); border-radius: 50%; position: relative; pointer-events: auto; }
         .joystick-knob { width: 36px; height: 36px; background: rgba(255,204,0,0.7); border-radius: 50%; position: absolute; top: 32px; left: 32px; pointer-events: none; }
-        #mobileReactions { position: fixed; top: 65px; left: 50%; transform: translateX(-50%); display: none; flex-direction: row; gap: 15px; z-index: 50; }
-        .react-btn { background: rgba(0,0,0,0.6); border: 1px solid #ffcc00; border-radius: 50%; width: 36px; height: 36px; font-size: 16px; display: flex; align-items: center; justify-content: center; }
+        #mobileReactions { position: fixed; bottom: 130px; left: 50%; transform: translateX(-50%); display: none; flex-direction: row; gap: 15px; z-index: 50; }
+        .react-btn { background: rgba(0,0,0,0.6); border: 1px solid #ffcc00; border-radius: 50%; width: 36px; height: 36px; font-size: 16px; display: flex; align-items: center; justify-content: center; color: white; cursor: pointer;}
 
         .hidden { display: none !important; }
-
-        /* Ajustes Responsive Estrictos */
         @media (max-width: 900px) { 
             #mainContainer { flex-direction: column; align-items: center; margin-top: 5px; gap: 10px; } 
             .canvas-wrapper { width: 95%; }
@@ -80,7 +73,7 @@
                 </select>
             </div>
             <div class="input-group">
-                <input type="text" id="customId" placeholder="SALA (Ej: B2B)" maxlength="8" style="width: 100px;">
+                <input type="text" id="customId" placeholder="SALA (Ej: B2B)" maxlength="8" style="width: 100px; text-transform: uppercase;">
                 <button onclick="connectToGame()">Jugar</button>
             </div>
         </div>
@@ -121,24 +114,27 @@
     <div id="mobileReactions"><button class="react-btn" onclick="sendReaction('🤬')">🤬</button><button class="react-btn" onclick="sendReaction('😂')">😂</button><button class="react-btn" onclick="sendReaction('💀')">💀</button><button class="react-btn" onclick="sendReaction('🏳️')">🏳️</button></div>
 
     <script>
-        const canvas = document.getElementById('gameCanvas'); const ctx = canvas.getContext('2d'); canvas.width = 900; canvas.height = 550;
-
-        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        if(isMobile) { document.getElementById('mobileControls').style.display = 'flex'; document.getElementById('mobileReactions').style.display = 'flex'; }
-
-        function toggleHostPanel() { const p = document.getElementById('hostSettings'); p.style.display = p.style.display === 'block' ? 'none' : 'block'; }
-
-        // RED GLOBAL REFORZADA: Agregamos TURN en puerto 443 (HTTPs) y puerto 80 para saltar firewalls empresariales cerrados.
-        const networkConfig = { 
-            config: { 
-                'iceServers': [
-                    { urls: 'stun:stun.l.google.com:19302' }, 
-                    { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
-                    { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' }
-                ],
-                'iceTransportPolicy': 'all' 
-            } 
+        // ==========================================
+        // 1. CONFIGURACIÓN DE FIREBASE 
+        // ==========================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyDxMYI0Q0ICvf7XM-VxMIs08wqaOTSOxBY",
+            authDomain: "caos-oficina.firebaseapp.com",
+            databaseURL: "https://caos-oficina-default-rtdb.firebaseio.com", 
+            projectId: "caos-oficina",
+            storageBucket: "caos-oficina.firebasestorage.app",
+            messagingSenderId: "301553196610",
+            appId: "1:301553196610:web:53ab5522faf64b255117db"
         };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        // ==========================================
+        // 2. VARIABLES GLOBALES Y MAPAS
+        // ==========================================
+        const canvas = document.getElementById('gameCanvas'); const ctx = canvas.getContext('2d'); canvas.width = 900; canvas.height = 550;
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        function toggleHostPanel() { const p = document.getElementById('hostSettings'); p.style.display = p.style.display === 'block' ? 'none' : 'block'; }
 
         const mapList = [
             { name: "Arena Vacía", bg: "#1a1a1a", wall: "#444", furniture: [], hazards: [] },
@@ -146,7 +142,8 @@
             { name: "Depósito Distrinando", bg: "#263238", wall: "#cfd8dc", furniture: [{x:80, y:80, w:60, h:380}, {x:760, y:80, w:60, h:380}, {x:300, y:150, w:100, h:100}], hazards: [{type:'belt', x:430, y:100, w:40, h:350, dx:0, dy:2}] }
         ];
 
-        let peer, connections = [], isHost = false, myId = "";
+        let myId = "usr_" + Math.random().toString(36).substr(2, 9);
+        let roomId = "", isHost = false, roomRef = null;
         let players = {}, bullets = [], boosters = [], particles = [], killfeedData = [], zoneSize = 0;
         let lastShot = 0, mouseX = 450, mouseY = 275, isShooting = false;
         let config = { mapIdx: 1, mode: 'teams', zoneSpeed: 0.08, moveSpeed: 4.5, shootCD: 1000 };
@@ -154,70 +151,99 @@
 
         function showMsg(txt, duration = 3000) { const m = document.getElementById('msgOverlay'); m.innerHTML = txt; m.style.display = 'block'; if(duration) setTimeout(() => m.style.display = 'none', duration); }
 
+        // ==========================================
+        // 3. LÓGICA DE FIREBASE (NUEVO CEREBRO)
+        // ==========================================
         function connectToGame() {
-            const rid = document.getElementById('customId').value.toUpperCase();
-            if(!rid) return showMsg("Por favor, ingresa un ID");
-            const brand = document.getElementById('userBrand').value; const finalName = document.getElementById('userName').value || "User";
+            roomId = document.getElementById('customId').value.toUpperCase();
+            if(!roomId) return showMsg("Por favor, ingresa un ID");
+            const brand = document.getElementById('userBrand').value; const name = document.getElementById('userName').value || "User";
             
-            showMsg("Conectando con servidores...", 0);
-            peer = new Peer(null, networkConfig);
-            
-            peer.on('open', (id) => { 
-                myId = id; const conn = peer.connect(rid, { reliable: true }); 
-                let connectionTimeout = setTimeout(() => { showMsg("Red bloqueada por el Firewall de la oficina.<br>Intenten jugar conectándose al 4G/5G del celular.", 6000); peer.destroy(); }, 8000);
-                conn.on('open', () => { clearTimeout(connectionTimeout); isHost = false; connections.push(conn); finalizeSetup(rid, finalName, brand); }); 
-            });
-            
-            peer.on('error', err => {
-                if(err.type === 'peer-unavailable') { showMsg("Creando partida...", 0); peer.destroy(); setTimeout(() => createAsHost(rid, finalName, brand), 500); } 
-                else { showMsg("Error: " + err.type); }
+            showMsg("Conectando a base de datos...", 0);
+            roomRef = db.ref('rooms/' + roomId);
+
+            // Verificar si la sala ya existe
+            roomRef.child('config').once('value', (snap) => {
+                if (snap.exists()) {
+                    isHost = false;
+                    config = snap.val();
+                    setupListeners(name, brand);
+                } else {
+                    isHost = true;
+                    roomRef.child('config').set(config);
+                    document.getElementById('hostToggleBtn').style.display = 'block';
+                    setupListeners(name, brand);
+                }
             });
         }
 
-        function createAsHost(rid, finalName, brand) {
-            isHost = true; peer = new Peer(rid, networkConfig);
-            peer.on('open', id => { document.getElementById('hostToggleBtn').style.display = 'block'; applySettings(); finalizeSetup(id, finalName, brand); });
-            peer.on('connection', conn => { conn.on('open', () => { connections.push(conn); conn.send({type:'sync', config}); }); conn.on('data', d => handleData(d, conn.peer)); });
-            peer.on('error', err => { if(err.type === 'unavailable-id') showMsg("Ese ID ya existe. Elegí otro."); });
-        }
-
-        function finalizeSetup(id, name, brand) {
-            document.getElementById('msgOverlay').style.display = 'none'; document.getElementById('displayId').innerText = id;
+        function setupListeners(name, brand) {
+            document.getElementById('msgOverlay').style.display = 'none'; document.getElementById('displayId').innerText = roomId;
             document.getElementById('menu').classList.add('hidden'); document.getElementById('gameActive').classList.remove('hidden');
             document.getElementById('sidePanel').classList.remove('hidden'); document.getElementById('chatBox').style.display = 'flex';
-            initPlayer(myId, name, brand); gameLoop();
+            if(isMobile) { document.getElementById('mobileControls').style.display = 'flex'; document.getElementById('mobileReactions').style.display = 'flex'; }
+
+            // Mi Jugador
+            let s = getSafeSpawn();
+            let myData = { name, brand, x:s.x, y:s.y, targetX:s.x, targetY:s.y, color: brandColors[brand], score:0, dead:false, shield:false, speedBoost:0, weapon:'normal', weaponExp:0, radius:12, react:null, shootAngle: null };
+            roomRef.child('players/' + myId).set(myData);
+            roomRef.child('players/' + myId).onDisconnect().remove();
+
+            // Escuchar Jugadores 
+            roomRef.child('players').on('value', snap => {
+                if(snap.exists()) { players = snap.val(); updateLeaderboard(); } else { players = {}; }
+            });
+
+            // Escuchar Estado Global (Solo si NO soy host)
+            if(!isHost) {
+                roomRef.child('state').on('value', snap => {
+                    if(snap.exists()) {
+                        let state = snap.val();
+                        bullets = state.bullets || []; boosters = state.boosters || []; zoneSize = state.zoneSize || 0;
+                        if(state.killData) addKillfeed(state.killData.killer, state.killData.victim, state.killData.color);
+                        if(state.explosions) particles = particles.concat(state.explosions);
+                    }
+                });
+                roomRef.child('config').on('value', snap => { if(snap.exists()) { config = snap.val(); updateLeaderboard(); }});
+            }
+
+            // Escuchar Chat
+            roomRef.child('chat').on('child_added', snap => {
+                let msg = snap.val(); renderChat(msg.sender, msg.color, msg.text);
+            });
+
+            gameLoop();
+
+            // Si soy host, empiezo el bucle de físicas
+            if(isHost) { setInterval(hostSyncLoop, 50); }
         }
 
         function applySettings() {
             if(!isHost) return; document.getElementById('hostSettings').style.display = 'none';
             config.mapIdx = parseInt(document.getElementById('cfgMap').value); config.mode = document.getElementById('cfgMode').value;
             config.zoneSpeed = parseFloat(document.getElementById('cfgZone').value); config.shootCD = parseInt(document.getElementById('cfgShoot').value);
-            zoneSize = 0; boosters = []; bullets = []; for(let id in players) resetPlayer(id);
-            connections.forEach(c => c.send({type:'sync', config})); updateLeaderboard();
+            zoneSize = 0; boosters = []; bullets = []; 
+            roomRef.child('config').set(config);
+            for(let id in players) resetPlayer(id);
         }
 
+        // ==========================================
+        // 4. LÓGICAS DE JUEGO Y CONTROLES
+        // ==========================================
         function getSafeSpawn() { let x, y, isSafe = false, att = 0; while(!isSafe && att < 100) { x = Math.random()*(canvas.width - 100) + 50; y = Math.random()*(canvas.height - 100) + 50; isSafe = !checkCollision(x, y, 15); att++; } return {x, y}; }
 
-        function resetPlayer(id) { let p = players[id]; if(!p) return; let s = getSafeSpawn(); p.dead = false; p.shield = false; p.speedBoost = 0; p.weapon = 'normal'; p.weaponExp = 0; p.x = s.x; p.y = s.y; p.targetX = s.x; p.targetY = s.y; }
-
-        function handleData(d, sender) {
-            if(d.type === 'sync') { config = d.config; zoneSize = 0; updateLeaderboard(); }
-            if(d.type === 'state') { players = d.players; bullets = d.bullets; boosters = d.boosters; zoneSize = d.zone; if(d.kill) addKillfeed(d.kill.killer, d.kill.victim, d.kill.color); if(d.explosions) particles = particles.concat(d.explosions); updateLeaderboard(); }
-            if(d.type === 'chatBroadcast') renderChat(d.msg.sender, d.msg.color, d.msg.text);
-            if(isHost) {
-                if(d.type === 'input') { if(!players[sender]) initPlayer(sender, d.name, d.brand); players[sender].targetX = d.x; players[sender].targetY = d.y; if(d.shoot) shoot(sender, d.angle); if(d.reaction) players[sender].react = { emoji: d.reaction, exp: Date.now() + 2500 }; }
-                if(d.type === 'chat') { let msgObj = { sender: players[sender].name, color: players[sender].color, text: d.text }; connections.forEach(c => c.send({type:'chatBroadcast', msg: msgObj})); renderChat(msgObj.sender, msgObj.color, msgObj.text); }
-            }
+        function resetPlayer(id) { 
+            let s = getSafeSpawn(); 
+            if(id === myId) { roomRef.child('players/' + myId).update({ dead: false, shield: false, speedBoost: 0, weapon: 'normal', x: s.x, y: s.y, targetX: s.x, targetY: s.y }); } 
+            else if (isHost) { roomRef.child('players/' + id).update({ dead: false, shield: false, speedBoost: 0, weapon: 'normal', x: s.x, y: s.y, targetX: s.x, targetY: s.y }); }
         }
 
-        function initPlayer(id, name, brand) { let s = getSafeSpawn(); players[id] = {name, brand, x:s.x, y:s.y, targetX:s.x, targetY:s.y, color: brandColors[brand], score:0, dead:false, shield:false, speedBoost:0, weapon:'normal', weaponExp:0, radius:12, react:null}; }
-
-        function sendReaction(emoji) { if(isHost && players[myId]) players[myId].react = { emoji, exp: Date.now() + 2500 }; else if(connections[0]) connections[0].send({type:'input', x:players[myId].x, y:players[myId].y, name:players[myId].name, brand:players[myId].brand, reaction: emoji}); }
+        function sendReaction(emoji) { roomRef.child('players/' + myId).update({ react: { emoji, exp: Date.now() + 2500 } }); }
 
         function sendChat() {
             let input = document.getElementById('chatInput'); let txt = input.value.trim(); if(!txt) return;
-            if(isHost) { let msgObj = { sender: players[myId].name, color: players[myId].color, text: txt }; connections.forEach(c => c.send({type:'chatBroadcast', msg: msgObj})); renderChat(msgObj.sender, msgObj.color, msgObj.text); } 
-            else if(connections[0]) { connections[0].send({type:'chat', text: txt}); } input.value = ''; input.blur();
+            roomRef.child('chat').push({ sender: players[myId].name, color: players[myId].color, text: txt });
+            input.value = ''; input.blur();
         }
 
         function renderChat(sender, color, text) { const box = document.getElementById('chatMessages'); box.innerHTML += `<div class="chat-msg"><b style="color:${color}">${sender}:</b> ${text}</div>`; box.scrollTop = box.scrollHeight; }
@@ -230,8 +256,8 @@
             const zone = document.getElementById(zoneId); const knob = document.getElementById(knobId); let active = false, center = {x:0, y:0};
             zone.addEventListener('touchstart', e => { active = true; const r = zone.getBoundingClientRect(); center = {x: r.left + r.width/2, y: r.top + r.height/2}; handleMove(e.touches[0]); });
             zone.addEventListener('touchmove', e => { if(active) handleMove(e.touches[0]); });
-            zone.addEventListener('touchend', () => { active = false; knob.style.transform = `translate(0px, 0px)`; if(isAim) isShooting = false; else if(players[myId]) { players[myId].targetX = players[myId].x; players[myId].targetY = players[myId].y; }});
-            function handleMove(touch) { let dx = touch.clientX - center.x, dy = touch.clientY - center.y, dist = Math.hypot(dx, dy), maxDist = 30; if(dist > maxDist) { dx = (dx/dist)*maxDist; dy = (dy/dist)*maxDist; } knob.style.transform = `translate(${dx}px, ${dy}px)`; if(players[myId] && !players[myId].dead) { if(isAim) { mouseX = players[myId].x + dx * 8; mouseY = players[myId].y + dy * 8; isShooting = dist > 10; } else { players[myId].targetX = players[myId].x + dx * 2.5; players[myId].targetY = players[myId].y + dy * 2.5; } } }
+            zone.addEventListener('touchend', () => { active = false; knob.style.transform = `translate(0px, 0px)`; if(isAim) isShooting = false; else if(players[myId]) { roomRef.child('players/'+myId).update({targetX: players[myId].x, targetY: players[myId].y}); }});
+            function handleMove(touch) { let dx = touch.clientX - center.x, dy = touch.clientY - center.y, dist = Math.hypot(dx, dy), maxDist = 30; if(dist > maxDist) { dx = (dx/dist)*maxDist; dy = (dy/dist)*maxDist; } knob.style.transform = `translate(${dx}px, ${dy}px)`; if(players[myId] && !players[myId].dead) { if(isAim) { mouseX = players[myId].x + dx * 8; mouseY = players[myId].y + dy * 8; isShooting = dist > 10; } else { roomRef.child('players/'+myId).update({targetX: players[myId].x + dx * 2.5, targetY: players[myId].y + dy * 2.5}); } } }
         }
         if(isMobile) { setupJoystick('joyLeft', 'knobLeft', false); setupJoystick('joyRight', 'knobRight', true); }
 
@@ -253,13 +279,79 @@
             document.getElementById('scoreList').innerHTML = html;
         }
 
-        function shoot(ownerId, angle) {
-            let p = players[ownerId];
-            if(p.weapon === 'shotgun') { [-0.2, 0, 0.2].forEach(a => bullets.push({x: p.x, y: p.y, angle: angle + a, owner: ownerId, color: p.color, speed: 12, size: 3})); } 
-            else if (p.weapon === 'sniper') { bullets.push({x: p.x, y: p.y, angle: angle, owner: ownerId, color: "#ffea00", speed: 25, size: 6, penetrate: true}); } 
-            else { bullets.push({x: p.x, y: p.y, angle: angle, owner: ownerId, color: p.color, speed: 15, size: 4}); }
+        // ==========================================
+        // 5. HOST SYNC LOOP (Cálculo de servidor)
+        // ==========================================
+        function hostSyncLoop() {
+            if(!isHost || !players) return;
+            let currentExplosions = null, killData = null;
+            zoneSize += config.zoneSpeed;
+
+            if(Math.random() < 0.05 && boosters.length < 5) { let bx = Math.random()*(canvas.width-100)+50, by = Math.random()*(canvas.height-100)+50; if(!checkCollision(bx, by, 15)) boosters.push({x: bx, y: by, type: ['🛡️', '☕', '🔫', '🎯'][Math.floor(Math.random()*4)]}); }
+
+            // Procesar disparos cargados
+            for(let id in players) {
+                if(players[id].shootAngle !== null && players[id].shootAngle !== undefined && !players[id].dead) {
+                    let a = players[id].shootAngle; let p = players[id];
+                    if(p.weapon === 'shotgun') { [-0.2, 0, 0.2].forEach(off => bullets.push({x: p.x, y: p.y, angle: a + off, owner: id, color: p.color, speed: 12, size: 3})); } 
+                    else if (p.weapon === 'sniper') { bullets.push({x: p.x, y: p.y, angle: a, owner: id, color: "#ffea00", speed: 25, size: 6, penetrate: true}); } 
+                    else { bullets.push({x: p.x, y: p.y, angle: a, owner: id, color: p.color, speed: 15, size: 4}); }
+                    roomRef.child('players/'+id+'/shootAngle').remove(); 
+                }
+            }
+
+            for(let i = bullets.length - 1; i >= 0; i--) {
+                let b = bullets[i]; b.x += Math.cos(b.angle)*b.speed; b.y += Math.sin(b.angle)*b.speed;
+                if(b.x < 0 || b.x > canvas.width || b.y < 0 || b.y > canvas.height || checkCollision(b.x, b.y, b.size)) { bullets.splice(i,1); continue; }
+                
+                for(let id in players) {
+                    let p = players[id]; let isEnemy = config.mode === 'ffa' ? id !== b.owner : id !== b.owner && players[b.owner].brand !== p.brand;
+                    if(!p.dead && isEnemy && Math.hypot(b.x-p.x, b.y-p.y) < p.radius + b.size) {
+                        if(p.shield) { roomRef.child('players/'+id+'/shield').set(false); if(!b.penetrate) bullets.splice(i,1); }
+                        else { 
+                            roomRef.child('players/'+id+'/dead').set(true); 
+                            roomRef.child('players/'+b.owner+'/score').set(players[b.owner].score + 1); 
+                            currentExplosions = createExplosion(p.x, p.y, p.color); killData = { killer: players[b.owner].name, victim: p.name, color: players[b.owner].color }; 
+                            if(!b.penetrate) bullets.splice(i,1); setTimeout(() => resetPlayer(id), 4000); 
+                        }
+                    }
+                }
+            }
+
+            let map = mapList[config.mapIdx];
+            for(let id in players) {
+                let p = players[id]; if(p.dead) continue;
+                if(p.weapon !== 'normal' && Date.now() > p.weaponExp) roomRef.child('players/'+id+'/weapon').set('normal');
+                let dx = p.targetX - p.x, dy = p.targetY - p.y, dist = Math.hypot(dx, dy), actSpd = p.speedBoost > Date.now() ? config.moveSpeed * 1.5 : config.moveSpeed;
+                
+                map.hazards.forEach(h => { if(h.type === 'coffee' && Math.hypot(p.x-h.x, p.y-h.y) < h.r) actSpd *= 0.4; if(h.type === 'belt' && p.x>h.x && p.x<h.x+h.w && p.y>h.y && p.y<h.y+h.h) { roomRef.child('players/'+id).update({x: p.x+h.dx, y: p.y+h.dy, targetX: p.x+h.dx, targetY: p.y+h.dy}); } });
+                
+                if(dist > actSpd) { 
+                    let nx = p.x + (dx/dist)*actSpd, ny = p.y + (dy/dist)*actSpd; 
+                    if(!checkCollision(nx, p.y, p.radius)) p.x = nx; if(!checkCollision(p.x, ny, p.radius)) p.y = ny; 
+                    roomRef.child('players/'+id).update({x: p.x, y: p.y});
+                }
+                
+                if(p.x < zoneSize || p.x > canvas.width-zoneSize || p.y < zoneSize || p.y > canvas.height-zoneSize) { roomRef.child('players/'+id+'/dead').set(true); currentExplosions = createExplosion(p.x, p.y, p.color); killData = { killer: "LA ZONA", victim: p.name, color: "#fff" }; setTimeout(() => resetPlayer(id), 4000); }
+                
+                for(let bi = boosters.length - 1; bi >= 0; bi--) {
+                    let b = boosters[bi];
+                    if(Math.hypot(p.x - b.x, p.y - b.y) < p.radius + 15) { 
+                        if(b.type === '🛡️') roomRef.child('players/'+id+'/shield').set(true); 
+                        if(b.type === '☕') roomRef.child('players/'+id+'/speedBoost').set(Date.now() + 6000); 
+                        if(b.type === '🔫') roomRef.child('players/'+id).update({weapon: 'shotgun', weaponExp: Date.now() + 10000}); 
+                        if(b.type === '🎯') roomRef.child('players/'+id).update({weapon: 'sniper', weaponExp: Date.now() + 10000}); 
+                        boosters.splice(bi, 1); 
+                    }
+                }
+            }
+
+            roomRef.child('state').set({ bullets, boosters, zoneSize, killData, explosions: currentExplosions });
         }
 
+        // ==========================================
+        // 6. RENDER LOOP
+        // ==========================================
         function gameLoop() {
             let map = mapList[config.mapIdx]; document.getElementById('mapName').innerText = map.name;
             ctx.fillStyle = map.bg; ctx.fillRect(0,0,canvas.width,canvas.height);
@@ -267,34 +359,13 @@
             map.hazards.forEach(h => { if(h.type === 'coffee') { ctx.fillStyle = "rgba(78, 52, 46, 0.6)"; ctx.beginPath(); ctx.arc(h.x, h.y, h.r, 0, Math.PI*2); ctx.fill(); } else if (h.type === 'belt') { ctx.fillStyle = "rgba(100, 100, 100, 0.4)"; ctx.fillRect(h.x, h.y, h.w, h.h); ctx.fillStyle = "rgba(255, 255, 255, 0.2)"; ctx.font="20px Arial"; ctx.fillText("⬇", h.x+10, h.y+h.h/2); } });
             ctx.shadowBlur = 15; ctx.shadowColor = "rgba(0,0,0,0.8)"; ctx.fillStyle = map.wall; map.furniture.forEach(f => ctx.fillRect(f.x, f.y, f.w, f.h)); ctx.shadowBlur = 0;
 
-            if(isHost) {
-                if(players[myId] && !isMobile) { players[myId].targetX = mouseX; players[myId].targetY = mouseY; }
-                if(players[myId] && isShooting && !players[myId].dead && Date.now() - lastShot > config.shootCD) { lastShot = Date.now(); shoot(myId, Math.atan2(mouseY - players[myId].y, mouseX - players[myId].x)); }
-                zoneSize += config.zoneSpeed; let currentExplosions = [], killData = null;
-
-                if(Math.random() < 0.008 && boosters.length < 5) { let bx = Math.random()*(canvas.width-100)+50, by = Math.random()*(canvas.height-100)+50; if(!checkCollision(bx, by, 15)) boosters.push({x: bx, y: by, type: ['🛡️', '☕', '🔫', '🎯'][Math.floor(Math.random()*4)]}); }
-
-                bullets.forEach((b, i) => {
-                    b.x += Math.cos(b.angle)*b.speed; b.y += Math.sin(b.angle)*b.speed; if(b.x < 0 || b.x > canvas.width || b.y < 0 || b.y > canvas.height || checkCollision(b.x, b.y, b.size)) { bullets.splice(i,1); return; }
-                    for(let id in players) {
-                        let p = players[id]; let isEnemy = config.mode === 'ffa' ? id !== b.owner : id !== b.owner && players[b.owner].brand !== p.brand;
-                        if(!p.dead && isEnemy && Math.hypot(b.x-p.x, b.y-p.y) < p.radius + b.size) { if(p.shield) { p.shield = false; if(!b.penetrate) bullets.splice(i,1); } else { p.dead = true; players[b.owner].score++; currentExplosions = currentExplosions.concat(createExplosion(p.x, p.y, p.color)); killData = { killer: players[b.owner].name, victim: p.name, color: players[b.owner].color }; if(!b.penetrate) bullets.splice(i,1); setTimeout(() => resetPlayer(id), 4000); } }
-                    }
-                });
-
-                for(let id in players) {
-                    let p = players[id]; if(p.dead) continue; if(p.weapon !== 'normal' && Date.now() > p.weaponExp) p.weapon = 'normal';
-                    let dx = p.targetX - p.x, dy = p.targetY - p.y, dist = Math.hypot(dx, dy), actSpd = p.speedBoost > Date.now() ? config.moveSpeed * 1.5 : config.moveSpeed;
-                    map.hazards.forEach(h => { if(h.type === 'coffee' && Math.hypot(p.x-h.x, p.y-h.y) < h.r) actSpd *= 0.4; if(h.type === 'belt' && p.x>h.x && p.x<h.x+h.w && p.y>h.y && p.y<h.y+h.h) { p.x+=h.dx; p.y+=h.dy; } });
-                    if(dist > actSpd) { let nx = p.x + (dx/dist)*actSpd, ny = p.y + (dy/dist)*actSpd; if(!checkCollision(nx, p.y, p.radius)) p.x = nx; if(!checkCollision(p.x, ny, p.radius)) p.y = ny; }
-                    if(p.x < zoneSize || p.x > canvas.width-zoneSize || p.y < zoneSize || p.y > canvas.height-zoneSize) { p.dead = true; currentExplosions = currentExplosions.concat(createExplosion(p.x, p.y, p.color)); killData = { killer: "LA ZONA", victim: p.name, color: "#fff" }; setTimeout(() => resetPlayer(id), 4000); }
-                    boosters.forEach((b, bi) => { if(Math.hypot(p.x - b.x, p.y - b.y) < p.radius + 15) { if(b.type === '🛡️') p.shield = true; if(b.type === '☕') p.speedBoost = Date.now() + 6000; if(b.type === '🔫') { p.weapon = 'shotgun'; p.weaponExp = Date.now() + 10000; } if(b.type === '🎯') { p.weapon = 'sniper'; p.weaponExp = Date.now() + 10000; } boosters.splice(bi, 1); } });
+            // Enviar mi Input a Firebase
+            if(players[myId] && !players[myId].dead && roomRef) {
+                if(!isMobile) { roomRef.child('players/'+myId).update({targetX: mouseX, targetY: mouseY}); }
+                if(isShooting && Date.now() - lastShot > config.shootCD) { 
+                    lastShot = Date.now(); 
+                    roomRef.child('players/'+myId+'/shootAngle').set(Math.atan2(mouseY - players[myId].y, mouseX - players[myId].x)); 
                 }
-                connections.forEach(c => c.send({type:'state', players, bullets, boosters, zone: zoneSize, explosions: currentExplosions, kill: killData}));
-                if(killData) addKillfeed(killData.killer, killData.victim, killData.color); particles = particles.concat(currentExplosions); updateLeaderboard();
-            } else if(connections[0] && players[myId]) {
-                if(isShooting && !players[myId].dead && Date.now() - lastShot > config.shootCD) { lastShot = Date.now(); connections[0].send({type:'input', x:players[myId].targetX, y:players[myId].targetY, name:players[myId].name, brand:players[myId].brand, shoot: true, angle: Math.atan2(mouseY - players[myId].y, mouseX - players[myId].x)}); } 
-                else { let tx = isMobile ? players[myId].targetX : mouseX, ty = isMobile ? players[myId].targetY : mouseY; connections[0].send({type:'input', x:tx, y:ty, name:players[myId].name, brand:players[myId].brand}); }
             }
 
             const kf = document.getElementById('killfeed'); kf.innerHTML = ""; killfeedData = killfeedData.filter(k => k.expire > Date.now()); killfeedData.forEach(k => { let d = document.createElement('div'); d.className = 'kf-item'; d.innerHTML = k.text; kf.appendChild(d); });
