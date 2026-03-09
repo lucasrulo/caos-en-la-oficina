@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Office Chaos: Distrinando B2B Edition</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        body { margin: 0; background: #0a0a0a; color: #eee; font-family: 'Segoe UI', sans-serif; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
+        canvas { border: 2px solid #333; cursor: crosshair; box-shadow: 0 10px 30px rgba(0,0,0,0.8); background: #111; border-radius: 8px; }
+        
+        #ui { position: absolute; top: 0; left: 0; width: 100%; background: rgba(15,15,15,0.95); padding: 15px 0; text-align: center; border-bottom: 2px solid #ffcc00; z-index: 10; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
+        .input-group { display: inline-block; margin: 0 10px; }
+        input, select { padding: 8px 12px; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff; font-size: 13px; outline: none; transition: 0.3s; }
+        input:focus { border-color: #ffcc00; }
+        
+        .color-opt { width: 20px; height: 20px; border-radius: 50%; display: inline-block; cursor: pointer; border: 2px solid transparent; margin: 0 4px; vertical-align: middle; transition: 0.2s; }
+        .color-opt.selected { border-color: white; transform: scale(1.3); box-shadow: 0 0 10px white; }
+        
+        button { padding: 8px 20px; cursor: pointer; background: #ffcc00; color: #000; border: none; border-radius: 4px; font-weight: bold; text-transform: uppercase; transition: 0.2s; font-size: 13px; }
+        button:hover { background: #e6b800; transform: scale(1.05); }
+        button:active { transform: scale(0.95); }
+
+        /* Paneles In-Game */
+        #hud { position: absolute; top: 80px; width: 900px; height: 550px; pointer-events: none; display: flex; justify-content: space-between; }
+        
+        #leaderboard { background: rgba(0,0,0,0.8); padding: 15px; border-radius: 8px; border: 1px solid #333; width: 160px; height: fit-content; pointer-events: auto; }
+        #leaderboard h3 { margin: 0 0 10px 0; color: #ffcc00; font-size: 14px; text-align: center; border-bottom: 1px solid #444; padding-bottom: 5px; }
+        .lb-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 5px; font-weight: bold; }
+        .lb-dead { opacity: 0.4; text-decoration: line-through; }
+
+        #killfeed { background: transparent; width: 200px; display: flex; flex-direction: column; align-items: flex-end; padding: 10px; }
+        .kf-item { background: rgba(20,20,20,0.8); padding: 5px 10px; margin-bottom: 5px; border-left: 3px solid #ff0000; font-size: 11px; border-radius: 3px; animation: slideIn 0.3s ease-out; }
+        
+        @keyframes slideIn { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+        #hostSettings { position: absolute; left: 20px; bottom: 20px; background: rgba(0,0,0,0.9); padding: 15px; border-radius: 8px; border: 1px solid #444; width: 200px; font-size: 12px; display: none; z-index: 5; pointer-events: auto; }
+        #hostSettings label { display: block; margin-top: 10px; color: #aaa; }
+        #hostSettings select { width: 100%; margin-top: 5px; }
+
+        #msgOverlay { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(255,0,0,0.9); color: white; padding: 10px 20px; border-radius: 5px; font-weight: bold; display: none; z-index: 100; }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <div id="ui">
+        <div id="menu">
+            <div class="input-group">
+                <input type="text" id="userName" placeholder="Nombre" maxlength="10">
+            </div>
+            <div class="input-group">
+                <select id="userBrand">
+                    <option value="[C]">Crocs</option>
+                    <option value="[K]">Kappa</option>
+                    <option value="[R]">Reebok</option>
+                    <option value="[P]">Piccadilly</option>
+                </select>
+            </div>
+            <div class="input-group" id="colorPicker"></div>
+            <div class="input-group">
+                <input type="text" id="customId" placeholder="ID SALA (Ej: OFI1)" maxlength="8">
+                <button onclick="connectToGame()">Conectar</button>
+            </div>
+        </div>
+        <div id="gameActive" class="hidden" style="color: #ccc; font-size: 14px;">
+            🔴 SALA: <b id="displayId" style="color: #ffcc00;">-</b> &nbsp;|&nbsp; 🗺️ MAPA: <span id="mapName">-</span>
+        </div>
+    </div>
+
+    <div id="msgOverlay">Conectando...</div>
+
+    <div id="hostSettings">
+        <h4 style="margin:0 0 10px 0; color:#ffcc00; text-align:center;">🎮 PANEL DE HOST</h4>
+        <label>Mapa:</label>
+        <select id="cfgMap"><option value="1">Oficina Central</option><option value="5">Depósito</option><option value="2">Comedor</option></select>
+        <label>Velocidad de Zona:</label>
+        <select id="cfgZone"><option value="0">Sin Zona</option><option value="0.08" selected>Lenta</option><option value="0.2">Rápida</option></select>
+        <button onclick="applySettings()" style="width:100%; margin-top:15px; font-size:11px;">REINICIAR PARTIDA</button>
+    </div>
+
+    <div style="position: relative; margin-top: 80px;">
+        <canvas id="gameCanvas"></canvas>
+        <div id="hud">
+            <div id="leaderboard" class="hidden">
+                <h3>🏆 RANKING</h3>
+                <div id="scoreList"></div>
+            </div>
+            <div id="killfeed"></div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = 900; canvas.height = 550;
+
+        // RED GLOBAL
+        const networkConfig = {
+            config: {
+                'iceServers': [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' }
+                ]
+            }
+        };
+
+        const mapList = [
+            { name: "Arena", bg: "#1a1a1a", wall: "#444", furniture: [] },
+            { name: "Oficina Central", bg: "#2c3e50", wall: "#808b96", furniture: [{x:100, y:100, w:150, h:60}, {x:650, y:100, w:150, h:60}, {x:100, y:350, w:150, h:60}, {x:650, y:350, w:150, h:60}, {x:400, y:200, w:100, h:150}] },
+            { name: "Comedor", bg: "#5d4037", wall: "#d7ccc8", furniture: [{x:150, y:50, w:600, h:40}, {x:200, y:200, w:150, h:80}, {x:550, y:200, w:150, h:80}, {x:200, y:400, w:150, h:80}, {x:550, y:400, w:150, h:80}] },
+            { name: "Parque", bg: "#2e7d32", wall: "#8d6e63", furniture: [] },
+            { name: "Casa", bg: "#3e2723", wall: "#efebe9", furniture: [] },
+            { name: "Depósito Distrinando", bg: "#263238", wall: "#cfd8dc", furniture: [{x:80, y:80, w:60, h:380}, {x:760, y:80, w:60, h:380}, {x:300, y:150, w:100, h:100}, {x:500, y:300, w:100, h:100}] }
+        ];
+
+        let peer, connections = [], isHost = false, myId = "";
+        let players = {}, bullets = [], boosters = [], particles = [], killfeedData = [], zoneSize = 0;
+        let selectedColor = "#00ffcc", lastShot = 0, mouseX = 450, mouseY = 275;
+        const SHOOT_CD = 1000; // 1 segundo
+        let config = { mapIdx: 1, zoneSpeed: 0.08, moveSpeed: 4 };
+
+        const colors = ["#00ffcc", "#ff4757", "#2ecc71", "#f1c40f", "#e67e22", "#9b59b6", "#ffffff"];
+        colors.forEach(c => {
+            const d = document.createElement('div'); d.className = 'color-opt'; d.style.background = c;
+            d.onclick = () => { document.querySelectorAll('.color-opt').forEach(e=>e.classList.remove('selected')); d.classList.add('selected'); selectedColor = c; };
+            document.getElementById('colorPicker').appendChild(d);
+        });
+        document.querySelector('.color-opt').classList.add('selected');
+
+        function showMsg(txt, duration = 3000) {
+            const m = document.getElementById('msgOverlay');
+            m.innerText = txt; m.style.display = 'block';
+            if(duration) setTimeout(() => m.style.display = 'none', duration);
+        }
+
+        function connectToGame() {
+            const rid = document.getElementById('customId').value.toUpperCase();
+            if(!rid) return showMsg("Por favor, ingresa un ID de Sala");
+            const rawName = document.getElementById('userName').value || "User";
+            const brand = document.getElementById('userBrand').value;
+            const finalName = `${brand} ${rawName}`;
+            
+            showMsg("Conectando a los servidores...", 0);
+            peer = new Peer(null, networkConfig);
+
+            peer.on('open', (id) => {
+                myId = id;
+                const conn = peer.connect(rid, { reliable: true });
+                let timeout = setTimeout(() => { peer.destroy(); createAsHost(rid, finalName); }, 4000);
+
+                conn.on('open', () => {
+                    clearTimeout(timeout);
+                    isHost = false; connections.push(conn);
+                    finalizeSetup(rid, finalName);
+                });
+                conn.on('data', d => handleData(d));
+            });
+            peer.on('error', err => showMsg("Error de red: Intenta otro ID"));
+        }
+
+        function createAsHost(rid, finalName) {
+            isHost = true;
+            peer = new Peer(rid, networkConfig);
+            peer.on('open', id => {
+                document.getElementById('hostSettings').style.display = 'block';
+                applySettings(); finalizeSetup(id, finalName);
+            });
+            peer.on('connection', conn => {
+                conn.on('open', () => { connections.push(conn); conn.send({type:'sync', config}); });
+                conn.on('data', d => handleData(d, conn.peer));
+            });
+            peer.on('error', err => {
+                if(err.type === 'unavailable-id') showMsg("Esa sala ya existe y no responde.");
+            });
+        }
+
+        function finalizeSetup(id, name) {
+            document.getElementById('msgOverlay').style.display = 'none';
+            document.getElementById('displayId').innerText = id;
+            document.getElementById('menu').classList.add('hidden');
+            document.getElementById('gameActive').classList.remove('hidden');
+            document.getElementById('leaderboard').classList.remove('hidden');
+            initPlayer(myId, name, selectedColor);
+            gameLoop();
+        }
+
+        function applySettings() {
+            if(!isHost) return;
+            config.mapIdx = parseInt(document.getElementById('cfgMap').value);
+            config.zoneSpeed = parseFloat(document.getElementById('cfgZone').value);
+            zoneSize = 0; boosters = [];
+            for(let id in players) resetPlayer(id);
+            connections.forEach(c => c.send({type:'sync', config}));
+        }
+
+        function resetPlayer(id) {
+            let p = players[id]; if(!p) return;
+            p.dead = false; p.shield = false; p.speedBoost = 0; p.x = Math.random()*700+100; p.y = Math.random()*350+100;
+        }
+
+        function handleData(d, sender) {
+            if(d.type === 'sync') { config = d.config; zoneSize = 0; }
+            if(d.type === 'state') { 
+                players = d.players; bullets = d.bullets; boosters = d.boosters; zoneSize = d.zone; 
+                if(d.kill) addKillfeed(d.kill.killer, d.kill.victim);
+                if(d.explosions) particles = particles.concat(d.explosions);
+                updateLeaderboard(); 
+            }
+            if(isHost && d.type === 'input') {
+                if(!players[sender]) initPlayer(sender, d.name, d.color);
+                players[sender].targetX = d.x; players[sender].targetY = d.y;
+            }
+            if(isHost && d.type === 'shoot') bullets.push(d.bullet);
+        }
+
+        function initPlayer(id, name, color) { 
+            players[id] = {name, x:450, y:275, targetX:450, targetY:275, color, score:0, dead:false, shield:false, speedBoost:0, radius:12}; 
+        }
+
+        function rectIntersect(cx, cy, r, rx, ry, rw, rh) {
+            let testX = cx, testY = cy;
+            if (cx < rx) testX = rx; else if (cx > rx + rw) testX = rx + rw;
+            if (cy < ry) testY = ry; else if (cy > ry + rh) testY = ry + rh;
+            let distX = cx - testX, distY = cy - testY;
+            return (distX*distX + distY*distY) <= (r*r);
+        }
+
+        function checkCollision(x, y, radius) {
+            let map = mapList[config.mapIdx];
+            return map.furniture.some(f => rectIntersect(x, y, radius, f.x, f.y, f.w, f.h));
+        }
+
+        function createExplosion(x, y, color) {
+            let p = []; for(let i=0; i<30; i++) p.push({x, y, vx:(Math.random()-0.5)*15, vy:(Math.random()-0.5)*15, life:1, color});
+            return p;
+        }
+
+        function addKillfeed(killerName, victimName) {
+            killfeedData.push({ text: `<span style="color:#00ffcc">${killerName}</span> 🔫 <span style="color:#ff4757">${victimName}</span>`, expire: Date.now() + 4000 });
+            renderKillfeed();
+        }
+
+        function renderKillfeed() {
+            const kf = document.getElementById('killfeed');
+            kf.innerHTML = "";
+            let now = Date.now();
+            killfeedData = killfeedData.filter(k => k.expire > now);
+            killfeedData.forEach(k => {
+                let d = document.createElement('div'); d.className = 'kf-item'; d.innerHTML = k.text; kf.appendChild(d);
+            });
+        }
+
+        function updateLeaderboard() {
+            let html = "";
+            let sorted = Object.values(players).sort((a,b) => b.score - a.score);
+            sorted.forEach((p, i) => {
+                let icon = i === 0 && p.score > 0 ? "👑" : "";
+                let stateClass = p.dead ? "lb-dead" : "";
+                html += `<div class="lb-row ${stateClass}"><span style="color:${p.color}">${icon} ${p.name}</span><span>${p.score}</span></div>`;
+            });
+            document.getElementById('scoreList').innerHTML = html;
+        }
+
+        window.addEventListener('mousemove', e => {
+            const r = canvas.getBoundingClientRect();
+            mouseX = (e.clientX - r.left) * (canvas.width / r.width); 
+            mouseY = (e.clientY - r.top) * (canvas.height / r.height);
+        });
+
+        window.addEventListener('mousedown', () => {
+            let p = players[myId];
+            if(!p || p.dead || Date.now() - lastShot < SHOOT_CD) return;
+            lastShot = Date.now();
+            let angle = Math.atan2(mouseY - p.y, mouseX - p.x);
+            const b = {x: p.x + Math.cos(angle)*15, y: p.y + Math.sin(angle)*15, angle: angle, owner: myId, color: p.color};
+            if(isHost) bullets.push(b); else if(connections[0]) connections[0].send({type:'shoot', bullet: b});
+        });
+
+        function gameLoop() {
+            let currentMap = mapList[config.mapIdx] || mapList[0];
+            document.getElementById('mapName').innerText = currentMap.name;
+
+            // DIBUJAR MAPA
+            ctx.fillStyle = currentMap.bg; ctx.fillRect(0,0,canvas.width,canvas.height);
+            
+            // DIBUJAR MUEBLES (CON SOMBRAS)
+            ctx.shadowBlur = 15; ctx.shadowColor = "rgba(0,0,0,0.8)";
+            ctx.fillStyle = currentMap.wall;
+            currentMap.furniture.forEach(f => ctx.fillRect(f.x, f.y, f.w, f.h));
+            ctx.shadowBlur = 0;
+
+            if(isHost) {
+                if(players[myId]) { players[myId].targetX = mouseX; players[myId].targetY = mouseY; }
+                zoneSize += config.zoneSpeed;
+                let currentExplosions = [], killData = null;
+
+                // Generar PowerUps
+                if(Math.random() < 0.005 && boosters.length < 3) {
+                    let bx = Math.random()*(canvas.width-100)+50, by = Math.random()*(canvas.height-100)+50;
+                    if(!checkCollision(bx, by, 15)) boosters.push({x: bx, y: by, type: Math.random() > 0.5 ? '🛡️' : '☕'});
+                }
+
+                bullets.forEach((b, i) => {
+                    b.x += Math.cos(b.angle)*15; b.y += Math.sin(b.angle)*15;
+                    // Colisión bala-pared
+                    if(b.x < 0 || b.x > canvas.width || b.y < 0 || b.y > canvas.height || checkCollision(b.x, b.y, 4)) { bullets.splice(i,1); return; }
+                    
+                    for(let id in players) {
+                        let p = players[id];
+                        if(!p.dead && id !== b.owner && Math.hypot(b.x-p.x, b.y-p.y) < p.radius + 4) {
+                            if(p.shield) { p.shield = false; bullets.splice(i,1); }
+                            else {
+                                p.dead = true; players[b.owner].score++;
+                                currentExplosions = currentExplosions.concat(createExplosion(p.x, p.y, p.color));
+                                killData = { killer: players[b.owner].name, victim: p.name };
+                                bullets.splice(i,1); setTimeout(() => resetPlayer(id), 3000);
+                            }
+                        }
+                    }
+                });
+
+                for(let id in players) {
+                    let p = players[id]; if(p.dead) continue;
+                    let dx = p.targetX - p.x, dy = p.targetY - p.y, dist = Math.hypot(dx, dy);
+                    let actualSpeed = p.speedBoost > Date.now() ? config.moveSpeed * 1.5 : config.moveSpeed;
+
+                    if(dist > 5) {
+                        let nx = p.x + (dx/dist)*actualSpeed, ny = p.y + (dy/dist)*actualSpeed;
+                        // Movimiento deslizable contra paredes
+                        if(!checkCollision(nx, p.y, p.radius)) p.x = nx;
+                        if(!checkCollision(p.x, ny, p.radius)) p.y = ny;
+                    }
+                    
+                    // Muerte por zona
+                    if(p.x < zoneSize || p.x > canvas.width-zoneSize || p.y < zoneSize || p.y > canvas.height-zoneSize) {
+                        p.dead = true; currentExplosions = currentExplosions.concat(createExplosion(p.x, p.y, p.color));
+                        killData = { killer: "LA ZONA", victim: p.name }; setTimeout(() => resetPlayer(id), 3000);
+                    }
+
+                    // Agarrar PowerUps
+                    boosters.forEach((b, bi) => {
+                        if(Math.hypot(p.x - b.x, p.y - b.y) < p.radius + 15) {
+                            if(b.type === '🛡️') p.shield = true;
+                            if(b.type === '☕') p.speedBoost = Date.now() + 5000;
+                            boosters.splice(bi, 1);
+                        }
+                    });
+                }
+                connections.forEach(c => c.send({type:'state', players, bullets, boosters, zone: zoneSize, explosions: currentExplosions, kill: killData}));
+                if(killData) addKillfeed(killData.killer, killData.victim);
+                particles = particles.concat(currentExplosions);
+                updateLeaderboard();
+            } else if(connections[0] && players[myId]) {
+                connections[0].send({type:'input', x:mouseX, y:mouseY, name:players[myId].name, color:players[myId].color});
+            }
+
+            // DIBUJAR ELEMENTOS
+            renderKillfeed(); // Refrescar UI killfeed
+
+            // Zona Tormenta
+            ctx.fillStyle = "rgba(255, 0, 0, 0.1)";
+            ctx.fillRect(0, 0, canvas.width, zoneSize); // Arriba
+            ctx.fillRect(0, canvas.height-zoneSize, canvas.width, zoneSize); // Abajo
+            ctx.fillRect(0, zoneSize, zoneSize, canvas.height-zoneSize*2); // Izq
+            ctx.fillRect(canvas.width-zoneSize, zoneSize, zoneSize, canvas.height-zoneSize*2); // Der
+            ctx.strokeStyle = "#ff4444"; ctx.lineWidth = 2; ctx.strokeRect(zoneSize, zoneSize, canvas.width-zoneSize*2, canvas.height-zoneSize*2);
+
+            boosters.forEach(b => { ctx.font = "20px Arial"; ctx.fillText(b.type, b.x-10, b.y+7); });
+            bullets.forEach(b => { ctx.fillStyle = b.color; ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, Math.PI*2); ctx.fill(); });
+
+            for(let id in players) {
+                let p = players[id]; if(p.dead) continue;
+                let angle = Math.atan2(p.targetY - p.y, p.targetX - p.x);
+                ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(angle);
+                
+                // Escudo
+                if(p.shield) { ctx.beginPath(); ctx.arc(0,0, p.radius+5, 0, Math.PI*2); ctx.strokeStyle = "#00f2ff"; ctx.lineWidth=3; ctx.stroke(); }
+                
+                // Personaje (Redondo para hitboxes justas)
+                ctx.beginPath(); ctx.arc(0,0, p.radius, 0, Math.PI*2);
+                ctx.fillStyle = p.color; ctx.fill();
+                ctx.fillStyle = "#fff"; ctx.fillRect(p.radius-4, -4, 6, 8); // Arma/Frente
+                ctx.restore();
+
+                // Nombre y Cooldown
+                ctx.fillStyle = "#fff"; ctx.font = "11px Arial"; ctx.textAlign = "center";
+                ctx.fillText(p.name, p.x, p.y - 20);
+                
+                if(id === myId) {
+                    let cdRatio = Math.min(1, (Date.now() - lastShot) / SHOOT_CD);
+                    if(cdRatio < 1) {
+                        ctx.beginPath(); ctx.arc(p.x, p.y, p.radius+10, -Math.PI/2, (-Math.PI/2) + (Math.PI*2 * cdRatio));
+                        ctx.strokeStyle = "rgba(255,255,255,0.5)"; ctx.lineWidth = 2; ctx.stroke();
+                    }
+                }
+            }
+
+            // Partículas
+            particles.forEach((p, i) => {
+                p.x += p.vx; p.y += p.vy; p.life -= 0.03; 
+                ctx.fillStyle = p.color; ctx.globalAlpha = Math.max(0, p.life);
+                ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, Math.PI*2); ctx.fill();
+                if(p.life <= 0) particles.splice(i, 1);
+            });
+            ctx.globalAlpha = 1; ctx.textAlign = "left"; // Reset
+
+            requestAnimationFrame(gameLoop);
+        }
+    </script>
+</body>
+</html>
