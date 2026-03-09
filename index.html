@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Office Chaos: Firebase Ultimate Edition</title>
+    <title>Office Chaos: Firebase Ultimate</title>
     
     <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-database-compat.js"></script>
@@ -42,7 +42,6 @@
         #hostSettings label { display: block; margin-top: 8px; color: #aaa; font-weight: bold; }
         #hostSettings select { width: 100%; margin-top: 4px; }
 
-        /* Reporte Histórico (Hall of Fame) */
         #hofModal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(15,15,15,0.95); border: 2px solid #ffcc00; border-radius: 8px; padding: 20px; width: 300px; z-index: 200; display: none; box-shadow: 0 0 30px rgba(0,0,0,0.8); }
         #hofModal h2 { color: #ffcc00; margin: 0 0 15px 0; text-align: center; font-size: 16px; border-bottom: 1px solid #444; padding-bottom: 10px; }
         .hof-row { display: flex; justify-content: space-between; padding: 6px; border-bottom: 1px solid #333; font-size: 13px; }
@@ -97,7 +96,7 @@
     <div id="hostSettings">
         <h4 style="margin:0 0 5px 0; color:#ffcc00; text-align:center;">PANEL HOST</h4>
         <label>Modo de Juego:</label><select id="cfgMode"><option value="teams" selected>Equipos</option><option value="ffa">Todos vs Todos</option><option value="juggernaut">Jefe Zombi</option></select>
-        <label>Mapa:</label><select id="cfgMap"><option value="0">Arena Vacía</option><option value="1" selected>Oficina</option><option value="5">Depósito</option></select>
+        <label>Mapa:</label><select id="cfgMap"><option value="0">Arena Vacía</option><option value="1" selected>Oficina</option><option value="2">Depósito</option></select>
         <label>Velocidad Mov.:</label><select id="cfgMove"><option value="3">Lento</option><option value="5" selected>Normal</option><option value="8">Rápido</option></select>
         <label>Zona:</label><select id="cfgZone"><option value="0">Apagada</option><option value="0.08" selected>Lenta</option><option value="0.2">Rápida</option></select>
         <label>Disparo:</label><select id="cfgShoot"><option value="1500">Lento</option><option value="1000" selected>Normal</option><option value="400">Metralleta</option></select>
@@ -118,12 +117,12 @@
 
     <script>
         // ==========================================
-        // 1. CONFIGURACIÓN DE FIREBASE (YA INYECTADA)
+        // 1. CONFIGURACIÓN DE FIREBASE
         // ==========================================
         const firebaseConfig = {
             apiKey: "AIzaSyDxMYI0Q0ICvf7XM-VxMIs08wqaOTSOxBY",
             authDomain: "caos-oficina.firebaseapp.com",
-            databaseURL: "https://caos-oficina-default-rtdb.firebaseio.com",
+            databaseURL: "https://caos-oficina-default-rtdb.firebaseio.com", 
             projectId: "caos-oficina",
             storageBucket: "caos-oficina.firebasestorage.app",
             messagingSenderId: "301553196610",
@@ -197,13 +196,16 @@
                         let sp = serverPlayers[id];
                         if(!localPlayers[id]) { localPlayers[id] = sp; } 
                         else {
-                            localPlayers[id].dbX = sp.x; localPlayers[id].dbY = sp.y; localPlayers[id].targetX = sp.targetX; localPlayers[id].targetY = sp.targetY;
-                            localPlayers[id].score = sp.score; localPlayers[id].dead = sp.dead; localPlayers[id].shield = sp.shield; localPlayers[id].weapon = sp.weapon;
-                            localPlayers[id].react = sp.react; localPlayers[id].hp = sp.hp; localPlayers[id].maxHp = sp.maxHp; localPlayers[id].isBoss = sp.isBoss; localPlayers[id].radius = sp.radius;
+                            let tempX = localPlayers[id].x; let tempY = localPlayers[id].y;
+                            Object.assign(localPlayers[id], sp); // Copia todo asegurando que pasen stats, boost y weapons
+                            localPlayers[id].dbX = sp.x; localPlayers[id].dbY = sp.y;
+                            localPlayers[id].x = tempX; localPlayers[id].y = tempY; // Mantiene interpolación
                         }
                     }
                     for(let id in localPlayers) { if(!serverPlayers[id]) delete localPlayers[id]; }
                     updateLeaderboard(); 
+                } else {
+                    localPlayers = {};
                 }
             });
 
@@ -289,8 +291,9 @@
             if(Math.random() < 0.05 && boosters.length < 6) { let bx = Math.random()*(canvas.width-100)+50, by = Math.random()*(canvas.height-100)+50; if(!checkCollision(bx, by, 15)) boosters.push({x: bx, y: by, type: ['🛡️', '☕', '🔫', '🎯', '💊', '💊'][Math.floor(Math.random()*6)]}); }
 
             for(let id in localPlayers) {
-                if(localPlayers[id].shootAngle !== null && localPlayers[id].shootAngle !== undefined && !localPlayers[id].dead) {
-                    let a = localPlayers[id].shootAngle; let p = localPlayers[id];
+                let p = localPlayers[id];
+                if(p.shootAngle !== null && p.shootAngle !== undefined && !p.dead) {
+                    let a = p.shootAngle; 
                     if(p.weapon === 'shotgun') { [-0.2, 0, 0.2].forEach(off => bullets.push({x: p.x, y: p.y, angle: a + off, owner: id, color: p.color, speed: 12, size: 3, damage: 25})); } 
                     else if (p.weapon === 'sniper') { bullets.push({x: p.x, y: p.y, angle: a, owner: id, color: "#ffea00", speed: 25, size: 6, damage: 80, penetrate: true}); } 
                     else if (p.weapon === 'boss') { bullets.push({x: p.x, y: p.y, angle: a, owner: id, color: "#ff4444", speed: 10, size: 8, damage: 60, penetrate: true}); } 
@@ -306,15 +309,15 @@
                 for(let id in localPlayers) {
                     let p = localPlayers[id]; let isEnemy = false;
                     if(config.mode === 'ffa') isEnemy = id !== b.owner;
-                    else if(config.mode === 'teams') isEnemy = id !== b.owner && localPlayers[b.owner].brand !== p.brand;
-                    else if(config.mode === 'juggernaut') isEnemy = id !== b.owner && (p.isBoss || localPlayers[b.owner].isBoss);
+                    else if(config.mode === 'teams') isEnemy = id !== b.owner && localPlayers[b.owner] && localPlayers[b.owner].brand !== p.brand;
+                    else if(config.mode === 'juggernaut') isEnemy = id !== b.owner && localPlayers[b.owner] && (p.isBoss || localPlayers[b.owner].isBoss);
 
                     if(!p.dead && isEnemy && Math.hypot(b.x-p.x, b.y-p.y) < p.radius + b.size) {
                         if(p.shield) { roomRef.child('players/'+id+'/shield').set(false); if(!b.penetrate) bullets.splice(i,1); }
                         else { 
                             let newHp = p.hp - b.damage;
                             if(newHp <= 0) {
-                                roomRef.child('players/'+id).update({dead: true, hp: 0}); roomRef.child('players/'+b.owner+'/score').set(localPlayers[b.owner].score + 1); 
+                                roomRef.child('players/'+id).update({dead: true, hp: 0}); roomRef.child('players/'+b.owner+'/score').set((localPlayers[b.owner].score || 0) + 1); 
                                 currentExplosions = createExplosion(p.x, p.y, p.color); killData = { killer: localPlayers[b.owner].name, victim: p.name, color: localPlayers[b.owner].color }; 
                                 db.ref('hallOfFame/'+localPlayers[b.owner].name).update({ kills: firebase.database.ServerValue.increment(1), brand: localPlayers[b.owner].brand });
                                 setTimeout(() => resetPlayer(id), 4000); 
