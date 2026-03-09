@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Office Chaos: Firebase Edition</title>
+    <title>Office Chaos: Firebase Ultimate Edition</title>
     
     <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-database-compat.js"></script>
@@ -14,8 +14,8 @@
         #ui { width: 100%; background: rgba(15,15,15,0.95); padding: 12px 0; text-align: center; border-bottom: 2px solid #ffcc00; z-index: 10; position: relative; }
         .input-group { display: inline-block; margin: 4px; }
         input, select { padding: 8px; border-radius: 4px; border: 1px solid #444; background: #222; color: #fff; font-size: 13px; outline: none; }
-        button { padding: 8px 16px; cursor: pointer; background: #ffcc00; color: #000; border: none; border-radius: 4px; font-weight: bold; text-transform: uppercase; font-size: 12px; }
-        button:hover { background: #e6b800; }
+        button { padding: 8px 16px; cursor: pointer; background: #ffcc00; color: #000; border: none; border-radius: 4px; font-weight: bold; text-transform: uppercase; font-size: 12px; transition: 0.2s; }
+        button:hover { background: #e6b800; transform: scale(1.05); }
 
         #mainContainer { display: flex; gap: 20px; align-items: flex-start; justify-content: center; margin-top: 15px; width: 95%; max-width: 1140px; }
         .canvas-wrapper { position: relative; width: 100%; max-width: 900px; }
@@ -42,6 +42,15 @@
         #hostSettings label { display: block; margin-top: 8px; color: #aaa; font-weight: bold; }
         #hostSettings select { width: 100%; margin-top: 4px; }
 
+        /* Reporte Histórico (Hall of Fame) */
+        #hofModal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(15,15,15,0.95); border: 2px solid #ffcc00; border-radius: 8px; padding: 20px; width: 300px; z-index: 200; display: none; box-shadow: 0 0 30px rgba(0,0,0,0.8); }
+        #hofModal h2 { color: #ffcc00; margin: 0 0 15px 0; text-align: center; font-size: 16px; border-bottom: 1px solid #444; padding-bottom: 10px; }
+        .hof-row { display: flex; justify-content: space-between; padding: 6px; border-bottom: 1px solid #333; font-size: 13px; }
+        .hof-row:nth-child(1) { color: #ffea00; font-weight: bold; font-size: 15px; }
+        .hof-row:nth-child(2) { color: #silver; font-weight: bold; }
+        .hof-row:nth-child(3) { color: #cd7f32; font-weight: bold; }
+        .close-btn { background: #ff4444; width: 100%; margin-top: 15px; }
+
         #msgOverlay { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(255,0,0,0.9); color: white; padding: 15px 25px; border-radius: 5px; font-weight: bold; display: none; z-index: 100; text-align: center; box-shadow: 0 0 20px rgba(255,0,0,0.5); }
         
         #mobileControls { position: fixed; bottom: 15px; left: 0; width: 100%; height: 110px; display: none; justify-content: space-between; padding: 0 20px; box-sizing: border-box; z-index: 50; pointer-events: none; }
@@ -51,14 +60,7 @@
         .react-btn { background: rgba(0,0,0,0.6); border: 1px solid #ffcc00; border-radius: 50%; width: 36px; height: 36px; font-size: 16px; display: flex; align-items: center; justify-content: center; color: white; cursor: pointer;}
 
         .hidden { display: none !important; }
-        @media (max-width: 900px) { 
-            #mainContainer { flex-direction: column; align-items: center; margin-top: 5px; gap: 10px; } 
-            .canvas-wrapper { width: 95%; }
-            #sidePanel { width: 95%; height: auto; min-height: unset; max-height: 200px; flex-direction: row; gap: 10px; padding: 8px; }
-            #scoreList { width: 50%; margin: 0; }
-            #chatBox { width: 50%; height: 100%; display: flex; }
-            #sidePanel h3 { display: none; }
-        }
+        @media (max-width: 900px) { #mainContainer { flex-direction: column; align-items: center; margin-top: 5px; gap: 10px; } .canvas-wrapper { width: 95%; } #sidePanel { width: 95%; height: auto; min-height: unset; max-height: 200px; flex-direction: row; gap: 10px; padding: 8px; } #scoreList { width: 50%; margin: 0; } #chatBox { width: 50%; height: 100%; display: flex; } #sidePanel h3 { display: none; } }
     </style>
 </head>
 <body>
@@ -75,6 +77,7 @@
             <div class="input-group">
                 <input type="text" id="customId" placeholder="SALA (Ej: B2B)" maxlength="8" style="width: 100px; text-transform: uppercase;">
                 <button onclick="connectToGame()">Jugar</button>
+                <button onclick="showHallOfFame()" style="background: #3498db; margin-left: 5px;">🏆 Histórico</button>
             </div>
         </div>
         <div id="gameActive" class="hidden" style="color: #ccc; font-size: 12px; margin-top: 5px;">
@@ -82,31 +85,31 @@
         </div>
     </div>
 
+    <div id="hofModal">
+        <h2>📊 REPORTE DE VENTAS (KILLS)</h2>
+        <div id="hofContent">Cargando datos...</div>
+        <button class="close-btn" onclick="document.getElementById('hofModal').style.display='none'">CERRAR</button>
+    </div>
+
     <div id="msgOverlay">Conectando...</div>
 
     <button id="hostToggleBtn" onclick="toggleHostPanel()">⚙️</button>
     <div id="hostSettings">
         <h4 style="margin:0 0 5px 0; color:#ffcc00; text-align:center;">PANEL HOST</h4>
-        <label>Modo:</label><select id="cfgMode"><option value="teams" selected>Equipos</option><option value="ffa">Todos vs Todos</option></select>
+        <label>Modo de Juego:</label><select id="cfgMode"><option value="teams" selected>Equipos</option><option value="ffa">Todos vs Todos</option><option value="juggernaut">Jefe Zombi</option></select>
         <label>Mapa:</label><select id="cfgMap"><option value="0">Arena Vacía</option><option value="1" selected>Oficina</option><option value="5">Depósito</option></select>
+        <label>Velocidad Mov.:</label><select id="cfgMove"><option value="3">Lento</option><option value="5" selected>Normal</option><option value="8">Rápido</option></select>
         <label>Zona:</label><select id="cfgZone"><option value="0">Apagada</option><option value="0.08" selected>Lenta</option><option value="0.2">Rápida</option></select>
         <label>Disparo:</label><select id="cfgShoot"><option value="1500">Lento</option><option value="1000" selected>Normal</option><option value="400">Metralleta</option></select>
         <button onclick="applySettings()" style="width:100%; margin-top:10px;">APLICAR Y REINICIAR</button>
     </div>
 
     <div id="mainContainer">
-        <div class="canvas-wrapper">
-            <canvas id="gameCanvas"></canvas>
-            <div id="hud"><div id="killfeed"></div></div>
-        </div>
-        
+        <div class="canvas-wrapper"><canvas id="gameCanvas"></canvas><div id="hud"><div id="killfeed"></div></div></div>
         <div id="sidePanel" class="hidden">
             <h3 id="lbTitle">🏆 RANKING</h3>
             <div id="scoreList"></div>
-            <div id="chatBox">
-                <div id="chatMessages"></div>
-                <input type="text" id="chatInput" placeholder="Escribir..." maxlength="40">
-            </div>
+            <div id="chatBox"><div id="chatMessages"></div><input type="text" id="chatInput" placeholder="Escribir..." maxlength="40"></div>
         </div>
     </div>
 
@@ -115,22 +118,21 @@
 
     <script>
         // ==========================================
-        // 1. CONFIGURACIÓN DE FIREBASE 
+        // 1. CONFIGURACIÓN DE FIREBASE (YA INYECTADA)
         // ==========================================
         const firebaseConfig = {
             apiKey: "AIzaSyDxMYI0Q0ICvf7XM-VxMIs08wqaOTSOxBY",
             authDomain: "caos-oficina.firebaseapp.com",
-            databaseURL: "https://caos-oficina-default-rtdb.firebaseio.com", 
+            databaseURL: "https://caos-oficina-default-rtdb.firebaseio.com",
             projectId: "caos-oficina",
             storageBucket: "caos-oficina.firebasestorage.app",
             messagingSenderId: "301553196610",
             appId: "1:301553196610:web:53ab5522faf64b255117db"
         };
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
+        firebase.initializeApp(firebaseConfig); const db = firebase.database();
 
         // ==========================================
-        // 2. VARIABLES GLOBALES Y MAPAS
+        // 2. GLOBALES Y MAPAS
         // ==========================================
         const canvas = document.getElementById('gameCanvas'); const ctx = canvas.getContext('2d'); canvas.width = 900; canvas.height = 550;
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -144,36 +146,37 @@
 
         let myId = "usr_" + Math.random().toString(36).substr(2, 9);
         let roomId = "", isHost = false, roomRef = null;
-        let players = {}, bullets = [], boosters = [], particles = [], killfeedData = [], zoneSize = 0;
+        let localPlayers = {}, bullets = [], boosters = [], particles = [], killfeedData = [], zoneSize = 0;
         let lastShot = 0, mouseX = 450, mouseY = 275, isShooting = false;
-        let config = { mapIdx: 1, mode: 'teams', zoneSpeed: 0.08, moveSpeed: 4.5, shootCD: 1000 };
+        let config = { mapIdx: 1, mode: 'teams', zoneSpeed: 0.08, moveSpeed: 5, shootCD: 1000, bossId: null };
         const brandColors = { "Crocs": "#00ffcc", "Kappa": "#ff4757", "Reebok": "#2ecc71", "Piccadilly": "#f1c40f" };
 
         function showMsg(txt, duration = 3000) { const m = document.getElementById('msgOverlay'); m.innerHTML = txt; m.style.display = 'block'; if(duration) setTimeout(() => m.style.display = 'none', duration); }
 
         // ==========================================
-        // 3. LÓGICA DE FIREBASE (NUEVO CEREBRO)
+        // 3. HALL OF FAME Y FIREBASE
         // ==========================================
+        function showHallOfFame() {
+            const modal = document.getElementById('hofModal'); const content = document.getElementById('hofContent');
+            modal.style.display = 'block'; content.innerHTML = "Cargando datos...";
+            db.ref('hallOfFame').orderByChild('kills').limitToLast(10).once('value', snap => {
+                if(!snap.exists()) { content.innerHTML = "Todavía no hay ventas registradas."; return; }
+                let data = []; snap.forEach(c => { data.push({name: c.key, kills: c.val().kills, brand: c.val().brand}); });
+                data.reverse(); let html = "";
+                data.forEach((d, i) => { html += `<div class="hof-row"><span>#${i+1} ${d.name}</span><span>[${d.brand[0]}]</span><span>${d.kills} Kills</span></div>`; });
+                content.innerHTML = html;
+            });
+        }
+
         function connectToGame() {
             roomId = document.getElementById('customId').value.toUpperCase();
             if(!roomId) return showMsg("Por favor, ingresa un ID");
             const brand = document.getElementById('userBrand').value; const name = document.getElementById('userName').value || "User";
             
-            showMsg("Conectando a base de datos...", 0);
-            roomRef = db.ref('rooms/' + roomId);
-
-            // Verificar si la sala ya existe
+            showMsg("Conectando a base de datos...", 0); roomRef = db.ref('rooms/' + roomId);
             roomRef.child('config').once('value', (snap) => {
-                if (snap.exists()) {
-                    isHost = false;
-                    config = snap.val();
-                    setupListeners(name, brand);
-                } else {
-                    isHost = true;
-                    roomRef.child('config').set(config);
-                    document.getElementById('hostToggleBtn').style.display = 'block';
-                    setupListeners(name, brand);
-                }
+                if (snap.exists()) { isHost = false; config = snap.val(); setupListeners(name, brand); } 
+                else { isHost = true; roomRef.child('config').set(config); document.getElementById('hostToggleBtn').style.display = 'block'; setupListeners(name, brand); }
             });
         }
 
@@ -183,69 +186,65 @@
             document.getElementById('sidePanel').classList.remove('hidden'); document.getElementById('chatBox').style.display = 'flex';
             if(isMobile) { document.getElementById('mobileControls').style.display = 'flex'; document.getElementById('mobileReactions').style.display = 'flex'; }
 
-            // Mi Jugador
             let s = getSafeSpawn();
-            let myData = { name, brand, x:s.x, y:s.y, targetX:s.x, targetY:s.y, color: brandColors[brand], score:0, dead:false, shield:false, speedBoost:0, weapon:'normal', weaponExp:0, radius:12, react:null, shootAngle: null };
-            roomRef.child('players/' + myId).set(myData);
-            roomRef.child('players/' + myId).onDisconnect().remove();
+            let myData = { name, brand, x:s.x, y:s.y, targetX:s.x, targetY:s.y, color: brandColors[brand], score:0, dead:false, shield:false, speedBoost:0, weapon:'normal', weaponExp:0, radius:12, react:null, shootAngle: null, hp: 100, maxHp: 100, isBoss: false };
+            roomRef.child('players/' + myId).set(myData); roomRef.child('players/' + myId).onDisconnect().remove();
 
-            // Escuchar Jugadores 
             roomRef.child('players').on('value', snap => {
-                if(snap.exists()) { players = snap.val(); updateLeaderboard(); } else { players = {}; }
+                if(snap.exists()) {
+                    let serverPlayers = snap.val();
+                    for(let id in serverPlayers) {
+                        let sp = serverPlayers[id];
+                        if(!localPlayers[id]) { localPlayers[id] = sp; } 
+                        else {
+                            localPlayers[id].dbX = sp.x; localPlayers[id].dbY = sp.y; localPlayers[id].targetX = sp.targetX; localPlayers[id].targetY = sp.targetY;
+                            localPlayers[id].score = sp.score; localPlayers[id].dead = sp.dead; localPlayers[id].shield = sp.shield; localPlayers[id].weapon = sp.weapon;
+                            localPlayers[id].react = sp.react; localPlayers[id].hp = sp.hp; localPlayers[id].maxHp = sp.maxHp; localPlayers[id].isBoss = sp.isBoss; localPlayers[id].radius = sp.radius;
+                        }
+                    }
+                    for(let id in localPlayers) { if(!serverPlayers[id]) delete localPlayers[id]; }
+                    updateLeaderboard(); 
+                }
             });
 
-            // Escuchar Estado Global (Solo si NO soy host)
             if(!isHost) {
                 roomRef.child('state').on('value', snap => {
                     if(snap.exists()) {
-                        let state = snap.val();
-                        bullets = state.bullets || []; boosters = state.boosters || []; zoneSize = state.zoneSize || 0;
-                        if(state.killData) addKillfeed(state.killData.killer, state.killData.victim, state.killData.color);
-                        if(state.explosions) particles = particles.concat(state.explosions);
+                        let state = snap.val(); bullets = state.bullets || []; boosters = state.boosters || []; zoneSize = state.zoneSize || 0;
+                        if(state.killData) addKillfeed(state.killData.killer, state.killData.victim, state.killData.color); if(state.explosions) particles = particles.concat(state.explosions);
                     }
                 });
                 roomRef.child('config').on('value', snap => { if(snap.exists()) { config = snap.val(); updateLeaderboard(); }});
             }
-
-            // Escuchar Chat
-            roomRef.child('chat').on('child_added', snap => {
-                let msg = snap.val(); renderChat(msg.sender, msg.color, msg.text);
-            });
-
-            gameLoop();
-
-            // Si soy host, empiezo el bucle de físicas
-            if(isHost) { setInterval(hostSyncLoop, 50); }
+            roomRef.child('chat').on('child_added', snap => { let msg = snap.val(); renderChat(msg.sender, msg.color, msg.text); });
+            gameLoop(); if(isHost) { setInterval(hostSyncLoop, 40); }
         }
 
         function applySettings() {
             if(!isHost) return; document.getElementById('hostSettings').style.display = 'none';
             config.mapIdx = parseInt(document.getElementById('cfgMap').value); config.mode = document.getElementById('cfgMode').value;
             config.zoneSpeed = parseFloat(document.getElementById('cfgZone').value); config.shootCD = parseInt(document.getElementById('cfgShoot').value);
-            zoneSize = 0; boosters = []; bullets = []; 
-            roomRef.child('config').set(config);
-            for(let id in players) resetPlayer(id);
+            config.moveSpeed = parseFloat(document.getElementById('cfgMove').value);
+            
+            if(config.mode === 'juggernaut') { let ids = Object.keys(localPlayers); config.bossId = ids[Math.floor(Math.random() * ids.length)]; } 
+            else { config.bossId = null; }
+            
+            zoneSize = 0; boosters = []; bullets = []; roomRef.child('config').set(config); for(let id in localPlayers) resetPlayer(id);
         }
 
         // ==========================================
-        // 4. LÓGICAS DE JUEGO Y CONTROLES
+        // 4. LÓGICAS GLOBALES
         // ==========================================
         function getSafeSpawn() { let x, y, isSafe = false, att = 0; while(!isSafe && att < 100) { x = Math.random()*(canvas.width - 100) + 50; y = Math.random()*(canvas.height - 100) + 50; isSafe = !checkCollision(x, y, 15); att++; } return {x, y}; }
 
         function resetPlayer(id) { 
-            let s = getSafeSpawn(); 
-            if(id === myId) { roomRef.child('players/' + myId).update({ dead: false, shield: false, speedBoost: 0, weapon: 'normal', x: s.x, y: s.y, targetX: s.x, targetY: s.y }); } 
-            else if (isHost) { roomRef.child('players/' + id).update({ dead: false, shield: false, speedBoost: 0, weapon: 'normal', x: s.x, y: s.y, targetX: s.x, targetY: s.y }); }
+            let s = getSafeSpawn(); let isBoss = (config.mode === 'juggernaut' && config.bossId === id);
+            let pData = { dead: false, shield: false, speedBoost: 0, weapon: isBoss ? 'boss' : 'normal', x: s.x, y: s.y, targetX: s.x, targetY: s.y, hp: isBoss ? 500 : 100, maxHp: isBoss ? 500 : 100, radius: isBoss ? 22 : 12, isBoss: isBoss };
+            if(id === myId) roomRef.child('players/' + myId).update(pData); else if (isHost) roomRef.child('players/' + id).update(pData);
         }
 
         function sendReaction(emoji) { roomRef.child('players/' + myId).update({ react: { emoji, exp: Date.now() + 2500 } }); }
-
-        function sendChat() {
-            let input = document.getElementById('chatInput'); let txt = input.value.trim(); if(!txt) return;
-            roomRef.child('chat').push({ sender: players[myId].name, color: players[myId].color, text: txt });
-            input.value = ''; input.blur();
-        }
-
+        function sendChat() { let input = document.getElementById('chatInput'); let txt = input.value.trim(); if(!txt) return; roomRef.child('chat').push({ sender: localPlayers[myId].name, color: localPlayers[myId].color, text: txt }); input.value = ''; input.blur(); }
         function renderChat(sender, color, text) { const box = document.getElementById('chatMessages'); box.innerHTML += `<div class="chat-msg"><b style="color:${color}">${sender}:</b> ${text}</div>`; box.scrollTop = box.scrollHeight; }
 
         window.addEventListener('keydown', e => { if(document.activeElement === document.getElementById('chatInput')) { if(e.key === 'Enter') sendChat(); return; } if(e.key === '1') sendReaction('🤬'); if(e.key === '2') sendReaction('😂'); if(e.key === '3') sendReaction('💀'); if(e.key === '4') sendReaction('🏳️'); });
@@ -256,46 +255,46 @@
             const zone = document.getElementById(zoneId); const knob = document.getElementById(knobId); let active = false, center = {x:0, y:0};
             zone.addEventListener('touchstart', e => { active = true; const r = zone.getBoundingClientRect(); center = {x: r.left + r.width/2, y: r.top + r.height/2}; handleMove(e.touches[0]); });
             zone.addEventListener('touchmove', e => { if(active) handleMove(e.touches[0]); });
-            zone.addEventListener('touchend', () => { active = false; knob.style.transform = `translate(0px, 0px)`; if(isAim) isShooting = false; else if(players[myId]) { roomRef.child('players/'+myId).update({targetX: players[myId].x, targetY: players[myId].y}); }});
-            function handleMove(touch) { let dx = touch.clientX - center.x, dy = touch.clientY - center.y, dist = Math.hypot(dx, dy), maxDist = 30; if(dist > maxDist) { dx = (dx/dist)*maxDist; dy = (dy/dist)*maxDist; } knob.style.transform = `translate(${dx}px, ${dy}px)`; if(players[myId] && !players[myId].dead) { if(isAim) { mouseX = players[myId].x + dx * 8; mouseY = players[myId].y + dy * 8; isShooting = dist > 10; } else { roomRef.child('players/'+myId).update({targetX: players[myId].x + dx * 2.5, targetY: players[myId].y + dy * 2.5}); } } }
+            zone.addEventListener('touchend', () => { active = false; knob.style.transform = `translate(0px, 0px)`; if(isAim) isShooting = false; else if(localPlayers[myId]) { roomRef.child('players/'+myId).update({targetX: localPlayers[myId].x, targetY: localPlayers[myId].y}); }});
+            function handleMove(touch) { let dx = touch.clientX - center.x, dy = touch.clientY - center.y, dist = Math.hypot(dx, dy), maxDist = 30; if(dist > maxDist) { dx = (dx/dist)*maxDist; dy = (dy/dist)*maxDist; } knob.style.transform = `translate(${dx}px, ${dy}px)`; if(localPlayers[myId] && !localPlayers[myId].dead) { if(isAim) { mouseX = localPlayers[myId].x + dx * 8; mouseY = localPlayers[myId].y + dy * 8; isShooting = dist > 10; } else { roomRef.child('players/'+myId).update({targetX: localPlayers[myId].x + dx * 2.5, targetY: localPlayers[myId].y + dy * 2.5}); } } }
         }
         if(isMobile) { setupJoystick('joyLeft', 'knobLeft', false); setupJoystick('joyRight', 'knobRight', true); }
 
         function checkCollision(x, y, radius) { return mapList[config.mapIdx].furniture.some(f => { let tx = x, ty = y; if (x < f.x) tx = f.x; else if (x > f.x + f.w) tx = f.x + f.w; if (y < f.y) ty = f.y; else if (y > f.y + f.h) ty = f.y + f.h; return ((x - tx)*(x - tx) + (y - ty)*(y - ty)) <= (radius*radius); }); }
-        function createExplosion(x, y, color) { let p = []; for(let i=0; i<25; i++) p.push({x, y, vx:(Math.random()-0.5)*12, vy:(Math.random()-0.5)*12, life:1, color}); return p; }
+        function createExplosion(x, y, color) { let p = []; for(let i=0; i<35; i++) p.push({x, y, vx:(Math.random()-0.5)*15, vy:(Math.random()-0.5)*15, life:1, color}); return p; }
         function addKillfeed(killer, victim, color) { killfeedData.push({ text: `<span style="color:${color}">${killer}</span> 🔫 ${victim}`, expire: Date.now() + 4000 }); }
 
         function updateLeaderboard() {
-            let html = ""; document.getElementById('lbTitle').innerText = config.mode === 'teams' ? "🏆 EQUIPOS" : "🏆 TODOS VS TODOS";
+            let html = ""; let title = config.mode === 'teams' ? "🏆 EQUIPOS" : (config.mode === 'juggernaut' ? "🧟 JEFE ZOMBI" : "🏆 TODOS VS TODOS");
+            document.getElementById('lbTitle').innerText = title;
             if(config.mode === 'teams') {
-                let teams = { "Crocs": 0, "Kappa": 0, "Reebok": 0, "Piccadilly": 0 }; Object.values(players).forEach(p => teams[p.brand] += p.score);
+                let teams = { "Crocs": 0, "Kappa": 0, "Reebok": 0, "Piccadilly": 0 }; Object.values(localPlayers).forEach(p => teams[p.brand] += p.score);
                 Object.keys(teams).sort((a,b) => teams[b] - teams[a]).forEach(t => {
-                    if(teams[t] > 0 || Object.values(players).some(p => p.brand === t)) {
+                    if(teams[t] > 0 || Object.values(localPlayers).some(p => p.brand === t)) {
                         html += `<div class="team-score" style="color:${brandColors[t]}"><span>[${t[0]}] ${t}</span><span>${teams[t]} pts</span></div>`;
-                        Object.values(players).filter(p => p.brand === t).sort((a,b) => b.score - a.score).forEach(p => { html += `<div class="lb-row ${p.dead?'lb-dead':''}"><span style="overflow:hidden; text-overflow:ellipsis;">${p.name}</span><span>${p.score}</span></div>`; });
+                        Object.values(localPlayers).filter(p => p.brand === t).sort((a,b) => b.score - a.score).forEach(p => { html += `<div class="lb-row ${p.dead?'lb-dead':''}"><span style="overflow:hidden; text-overflow:ellipsis;">${p.name}</span><span>${p.score}</span></div>`; });
                     }
                 });
-            } else { Object.values(players).sort((a,b) => b.score - a.score).forEach((p, i) => { let icon = i === 0 && p.score > 0 ? "👑" : ""; html += `<div class="lb-row ${p.dead?'lb-dead':''}"><span style="color:${p.color};">[${p.brand[0]}] ${icon} ${p.name}</span><span>${p.score}</span></div>`; }); }
+            } else { Object.values(localPlayers).sort((a,b) => b.score - a.score).forEach((p, i) => { let icon = p.isBoss ? "🧟" : (i === 0 && p.score > 0 ? "👑" : ""); html += `<div class="lb-row ${p.dead?'lb-dead':''}"><span style="color:${p.isBoss ? '#ff4444' : p.color};">[${p.brand[0]}] ${icon} ${p.name}</span><span>${p.score}</span></div>`; }); }
             document.getElementById('scoreList').innerHTML = html;
         }
 
         // ==========================================
-        // 5. HOST SYNC LOOP (Cálculo de servidor)
+        // 5. HOST SYNC LOOP (Cálculo de servidor y Daño)
         // ==========================================
         function hostSyncLoop() {
-            if(!isHost || !players) return;
-            let currentExplosions = null, killData = null;
-            zoneSize += config.zoneSpeed;
+            if(!isHost || !localPlayers) return;
+            let currentExplosions = null, killData = null; zoneSize += config.zoneSpeed;
 
-            if(Math.random() < 0.05 && boosters.length < 5) { let bx = Math.random()*(canvas.width-100)+50, by = Math.random()*(canvas.height-100)+50; if(!checkCollision(bx, by, 15)) boosters.push({x: bx, y: by, type: ['🛡️', '☕', '🔫', '🎯'][Math.floor(Math.random()*4)]}); }
+            if(Math.random() < 0.05 && boosters.length < 6) { let bx = Math.random()*(canvas.width-100)+50, by = Math.random()*(canvas.height-100)+50; if(!checkCollision(bx, by, 15)) boosters.push({x: bx, y: by, type: ['🛡️', '☕', '🔫', '🎯', '💊', '💊'][Math.floor(Math.random()*6)]}); }
 
-            // Procesar disparos cargados
-            for(let id in players) {
-                if(players[id].shootAngle !== null && players[id].shootAngle !== undefined && !players[id].dead) {
-                    let a = players[id].shootAngle; let p = players[id];
-                    if(p.weapon === 'shotgun') { [-0.2, 0, 0.2].forEach(off => bullets.push({x: p.x, y: p.y, angle: a + off, owner: id, color: p.color, speed: 12, size: 3})); } 
-                    else if (p.weapon === 'sniper') { bullets.push({x: p.x, y: p.y, angle: a, owner: id, color: "#ffea00", speed: 25, size: 6, penetrate: true}); } 
-                    else { bullets.push({x: p.x, y: p.y, angle: a, owner: id, color: p.color, speed: 15, size: 4}); }
+            for(let id in localPlayers) {
+                if(localPlayers[id].shootAngle !== null && localPlayers[id].shootAngle !== undefined && !localPlayers[id].dead) {
+                    let a = localPlayers[id].shootAngle; let p = localPlayers[id];
+                    if(p.weapon === 'shotgun') { [-0.2, 0, 0.2].forEach(off => bullets.push({x: p.x, y: p.y, angle: a + off, owner: id, color: p.color, speed: 12, size: 3, damage: 25})); } 
+                    else if (p.weapon === 'sniper') { bullets.push({x: p.x, y: p.y, angle: a, owner: id, color: "#ffea00", speed: 25, size: 6, damage: 80, penetrate: true}); } 
+                    else if (p.weapon === 'boss') { bullets.push({x: p.x, y: p.y, angle: a, owner: id, color: "#ff4444", speed: 10, size: 8, damage: 60, penetrate: true}); } 
+                    else { bullets.push({x: p.x, y: p.y, angle: a, owner: id, color: p.color, speed: 15, size: 4, damage: 30}); }
                     roomRef.child('players/'+id+'/shootAngle').remove(); 
                 }
             }
@@ -304,35 +303,40 @@
                 let b = bullets[i]; b.x += Math.cos(b.angle)*b.speed; b.y += Math.sin(b.angle)*b.speed;
                 if(b.x < 0 || b.x > canvas.width || b.y < 0 || b.y > canvas.height || checkCollision(b.x, b.y, b.size)) { bullets.splice(i,1); continue; }
                 
-                for(let id in players) {
-                    let p = players[id]; let isEnemy = config.mode === 'ffa' ? id !== b.owner : id !== b.owner && players[b.owner].brand !== p.brand;
+                for(let id in localPlayers) {
+                    let p = localPlayers[id]; let isEnemy = false;
+                    if(config.mode === 'ffa') isEnemy = id !== b.owner;
+                    else if(config.mode === 'teams') isEnemy = id !== b.owner && localPlayers[b.owner].brand !== p.brand;
+                    else if(config.mode === 'juggernaut') isEnemy = id !== b.owner && (p.isBoss || localPlayers[b.owner].isBoss);
+
                     if(!p.dead && isEnemy && Math.hypot(b.x-p.x, b.y-p.y) < p.radius + b.size) {
                         if(p.shield) { roomRef.child('players/'+id+'/shield').set(false); if(!b.penetrate) bullets.splice(i,1); }
                         else { 
-                            roomRef.child('players/'+id+'/dead').set(true); 
-                            roomRef.child('players/'+b.owner+'/score').set(players[b.owner].score + 1); 
-                            currentExplosions = createExplosion(p.x, p.y, p.color); killData = { killer: players[b.owner].name, victim: p.name, color: players[b.owner].color }; 
-                            if(!b.penetrate) bullets.splice(i,1); setTimeout(() => resetPlayer(id), 4000); 
+                            let newHp = p.hp - b.damage;
+                            if(newHp <= 0) {
+                                roomRef.child('players/'+id).update({dead: true, hp: 0}); roomRef.child('players/'+b.owner+'/score').set(localPlayers[b.owner].score + 1); 
+                                currentExplosions = createExplosion(p.x, p.y, p.color); killData = { killer: localPlayers[b.owner].name, victim: p.name, color: localPlayers[b.owner].color }; 
+                                db.ref('hallOfFame/'+localPlayers[b.owner].name).update({ kills: firebase.database.ServerValue.increment(1), brand: localPlayers[b.owner].brand });
+                                setTimeout(() => resetPlayer(id), 4000); 
+                            } else { roomRef.child('players/'+id+'/hp').set(newHp); }
+                            if(!b.penetrate) bullets.splice(i,1); 
                         }
                     }
                 }
             }
 
             let map = mapList[config.mapIdx];
-            for(let id in players) {
-                let p = players[id]; if(p.dead) continue;
-                if(p.weapon !== 'normal' && Date.now() > p.weaponExp) roomRef.child('players/'+id+'/weapon').set('normal');
-                let dx = p.targetX - p.x, dy = p.targetY - p.y, dist = Math.hypot(dx, dy), actSpd = p.speedBoost > Date.now() ? config.moveSpeed * 1.5 : config.moveSpeed;
-                
+            for(let id in localPlayers) {
+                let p = localPlayers[id]; if(p.dead) continue;
+                if(p.weapon !== 'normal' && p.weapon !== 'boss' && Date.now() > p.weaponExp) roomRef.child('players/'+id+'/weapon').set('normal');
+                let actSpd = p.speedBoost > Date.now() ? config.moveSpeed * 1.5 : config.moveSpeed;
+                if(p.isBoss) actSpd *= 0.7; 
+
+                let dx = p.targetX - p.x, dy = p.targetY - p.y, dist = Math.hypot(dx, dy);
                 map.hazards.forEach(h => { if(h.type === 'coffee' && Math.hypot(p.x-h.x, p.y-h.y) < h.r) actSpd *= 0.4; if(h.type === 'belt' && p.x>h.x && p.x<h.x+h.w && p.y>h.y && p.y<h.y+h.h) { roomRef.child('players/'+id).update({x: p.x+h.dx, y: p.y+h.dy, targetX: p.x+h.dx, targetY: p.y+h.dy}); } });
                 
-                if(dist > actSpd) { 
-                    let nx = p.x + (dx/dist)*actSpd, ny = p.y + (dy/dist)*actSpd; 
-                    if(!checkCollision(nx, p.y, p.radius)) p.x = nx; if(!checkCollision(p.x, ny, p.radius)) p.y = ny; 
-                    roomRef.child('players/'+id).update({x: p.x, y: p.y});
-                }
-                
-                if(p.x < zoneSize || p.x > canvas.width-zoneSize || p.y < zoneSize || p.y > canvas.height-zoneSize) { roomRef.child('players/'+id+'/dead').set(true); currentExplosions = createExplosion(p.x, p.y, p.color); killData = { killer: "LA ZONA", victim: p.name, color: "#fff" }; setTimeout(() => resetPlayer(id), 4000); }
+                if(dist > actSpd) { let nx = p.x + (dx/dist)*actSpd, ny = p.y + (dy/dist)*actSpd; if(!checkCollision(nx, p.y, p.radius)) p.x = nx; if(!checkCollision(p.x, ny, p.radius)) p.y = ny; roomRef.child('players/'+id).update({x: p.x, y: p.y}); }
+                if(p.x < zoneSize || p.x > canvas.width-zoneSize || p.y < zoneSize || p.y > canvas.height-zoneSize) { roomRef.child('players/'+id).update({dead: true, hp: 0}); currentExplosions = createExplosion(p.x, p.y, p.color); killData = { killer: "LA ZONA", victim: p.name, color: "#fff" }; setTimeout(() => resetPlayer(id), 4000); }
                 
                 for(let bi = boosters.length - 1; bi >= 0; bi--) {
                     let b = boosters[bi];
@@ -341,48 +345,48 @@
                         if(b.type === '☕') roomRef.child('players/'+id+'/speedBoost').set(Date.now() + 6000); 
                         if(b.type === '🔫') roomRef.child('players/'+id).update({weapon: 'shotgun', weaponExp: Date.now() + 10000}); 
                         if(b.type === '🎯') roomRef.child('players/'+id).update({weapon: 'sniper', weaponExp: Date.now() + 10000}); 
+                        if(b.type === '💊') roomRef.child('players/'+id+'/hp').set(Math.min(p.maxHp, p.hp + 50));
                         boosters.splice(bi, 1); 
                     }
                 }
             }
-
             roomRef.child('state').set({ bullets, boosters, zoneSize, killData, explosions: currentExplosions });
         }
 
         // ==========================================
-        // 6. RENDER LOOP
+        // 6. RENDER LOOP (Animación 60FPS)
         // ==========================================
         function gameLoop() {
             let map = mapList[config.mapIdx]; document.getElementById('mapName').innerText = map.name;
             ctx.fillStyle = map.bg; ctx.fillRect(0,0,canvas.width,canvas.height);
-            
             map.hazards.forEach(h => { if(h.type === 'coffee') { ctx.fillStyle = "rgba(78, 52, 46, 0.6)"; ctx.beginPath(); ctx.arc(h.x, h.y, h.r, 0, Math.PI*2); ctx.fill(); } else if (h.type === 'belt') { ctx.fillStyle = "rgba(100, 100, 100, 0.4)"; ctx.fillRect(h.x, h.y, h.w, h.h); ctx.fillStyle = "rgba(255, 255, 255, 0.2)"; ctx.font="20px Arial"; ctx.fillText("⬇", h.x+10, h.y+h.h/2); } });
             ctx.shadowBlur = 15; ctx.shadowColor = "rgba(0,0,0,0.8)"; ctx.fillStyle = map.wall; map.furniture.forEach(f => ctx.fillRect(f.x, f.y, f.w, f.h)); ctx.shadowBlur = 0;
 
-            // Enviar mi Input a Firebase
-            if(players[myId] && !players[myId].dead && roomRef) {
+            if(localPlayers[myId] && !localPlayers[myId].dead && roomRef) {
                 if(!isMobile) { roomRef.child('players/'+myId).update({targetX: mouseX, targetY: mouseY}); }
-                if(isShooting && Date.now() - lastShot > config.shootCD) { 
-                    lastShot = Date.now(); 
-                    roomRef.child('players/'+myId+'/shootAngle').set(Math.atan2(mouseY - players[myId].y, mouseX - players[myId].x)); 
-                }
+                if(isShooting && Date.now() - lastShot > config.shootCD) { lastShot = Date.now(); roomRef.child('players/'+myId+'/shootAngle').set(Math.atan2(mouseY - localPlayers[myId].y, mouseX - localPlayers[myId].x)); }
             }
 
             const kf = document.getElementById('killfeed'); kf.innerHTML = ""; killfeedData = killfeedData.filter(k => k.expire > Date.now()); killfeedData.forEach(k => { let d = document.createElement('div'); d.className = 'kf-item'; d.innerHTML = k.text; kf.appendChild(d); });
 
             ctx.fillStyle = "rgba(255, 0, 0, 0.1)"; ctx.fillRect(0, 0, canvas.width, zoneSize); ctx.fillRect(0, canvas.height-zoneSize, canvas.width, zoneSize); ctx.fillRect(0, zoneSize, zoneSize, canvas.height-zoneSize*2); ctx.fillRect(canvas.width-zoneSize, zoneSize, zoneSize, canvas.height-zoneSize*2); ctx.strokeStyle = "#ff4444"; ctx.lineWidth = 2; ctx.strokeRect(zoneSize, zoneSize, canvas.width-zoneSize*2, canvas.height-zoneSize*2);
-            boosters.forEach(b => { ctx.shadowBlur = 15; ctx.shadowColor = '#fff'; ctx.fillStyle = "rgba(255, 255, 255, 0.9)"; ctx.beginPath(); ctx.arc(b.x, b.y, 14, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur = 0; ctx.fillStyle = "#000"; ctx.font = "16px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(b.type, b.x, b.y+1); });
+            boosters.forEach(b => { ctx.shadowBlur = 15; ctx.shadowColor = b.type === '💊' ? '#ff4757' : '#fff'; ctx.fillStyle = "rgba(255, 255, 255, 0.9)"; ctx.beginPath(); ctx.arc(b.x, b.y, 14, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur = 0; ctx.fillStyle = "#000"; ctx.font = "16px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(b.type, b.x, b.y+1); });
             bullets.forEach(b => { ctx.fillStyle = b.color; ctx.beginPath(); ctx.arc(b.x, b.y, b.size, 0, Math.PI*2); ctx.fill(); });
 
-            for(let id in players) {
-                let p = players[id]; if(p.dead) continue;
+            for(let id in localPlayers) {
+                let p = localPlayers[id]; if(p.dead) continue;
+                if (p.dbX !== undefined && p.dbY !== undefined) { p.x += (p.dbX - p.x) * 0.3; p.y += (p.dbY - p.y) * 0.3; }
+                
                 let angle = isMobile && isShooting && id === myId ? Math.atan2(mouseY - p.y, mouseX - p.x) : Math.atan2(p.targetY - p.y, p.targetX - p.x);
                 ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(angle);
                 if(p.shield) { ctx.beginPath(); ctx.arc(0,0, p.radius+5, 0, Math.PI*2); ctx.strokeStyle = "#00f2ff"; ctx.lineWidth=3; ctx.stroke(); }
-                ctx.beginPath(); ctx.arc(0,0, p.radius, 0, Math.PI*2); ctx.fillStyle = p.color; ctx.fill();
-                ctx.fillStyle = "#fff"; if(p.weapon === 'sniper') ctx.fillRect(p.radius-2, -3, 15, 6); else if(p.weapon === 'shotgun') { ctx.fillRect(p.radius-2, -6, 10, 4); ctx.fillRect(p.radius-2, 2, 10, 4); } else ctx.fillRect(p.radius-4, -4, 8, 8); ctx.restore();
-                ctx.fillStyle = "#fff"; ctx.font = "bold 11px Arial"; ctx.textAlign = "center"; ctx.fillText(`[${p.brand[0]}] ${p.name}`, p.x, p.y - 20);
-                if(p.react && p.react.exp > Date.now()) { ctx.font = "24px Arial"; ctx.fillText(p.react.emoji, p.x, p.y - 35); }
+                ctx.beginPath(); ctx.arc(0,0, p.radius, 0, Math.PI*2); ctx.fillStyle = p.isBoss ? '#8b0000' : p.color; ctx.fill();
+                ctx.fillStyle = "#fff"; if(p.weapon === 'sniper') ctx.fillRect(p.radius-2, -3, 15, 6); else if(p.weapon === 'shotgun') { ctx.fillRect(p.radius-2, -6, 10, 4); ctx.fillRect(p.radius-2, 2, 10, 4); } else if(p.weapon === 'boss') { ctx.fillRect(p.radius-4, -8, 12, 16); } else ctx.fillRect(p.radius-4, -4, 8, 8); ctx.restore();
+                
+                let hpPct = Math.max(0, p.hp / p.maxHp); ctx.fillStyle = "#ff4444"; ctx.fillRect(p.x - 15, p.y - p.radius - 12, 30, 4); ctx.fillStyle = "#2ecc71"; ctx.fillRect(p.x - 15, p.y - p.radius - 12, 30 * hpPct, 4);
+
+                ctx.fillStyle = "#fff"; ctx.font = "bold 11px Arial"; ctx.textAlign = "center"; ctx.fillText(`[${p.brand[0]}] ${p.name}`, p.x, p.y - p.radius - 16);
+                if(p.react && p.react.exp > Date.now()) { ctx.font = "24px Arial"; ctx.fillText(p.react.emoji, p.x, p.y - p.radius - 30); }
                 if(id === myId) { let cdRatio = Math.min(1, (Date.now() - lastShot) / config.shootCD); if(cdRatio < 1) { ctx.beginPath(); ctx.arc(p.x, p.y, p.radius+10, -Math.PI/2, (-Math.PI/2) + (Math.PI*2 * cdRatio)); ctx.strokeStyle = "rgba(255,255,255,0.7)"; ctx.lineWidth = 2; ctx.stroke(); } }
             }
 
