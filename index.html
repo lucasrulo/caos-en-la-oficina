@@ -17,27 +17,31 @@
         #mainContainer { display: flex; gap: 20px; align-items: flex-start; justify-content: center; margin-top: 60px; }
         canvas { border: 2px solid #333; cursor: crosshair; box-shadow: 0 10px 30px rgba(0,0,0,0.8); background: #111; border-radius: 8px; }
         
-        #sidePanel { background: rgba(15,15,15,0.9); border: 2px solid #333; border-radius: 8px; padding: 15px; width: 180px; height: 516px; overflow-y: auto; }
+        /* Panel Lateral (Ranking + Chat) */
+        #sidePanel { background: rgba(15,15,15,0.9); border: 2px solid #333; border-radius: 8px; padding: 15px; width: 220px; height: 516px; display: flex; flex-direction: column; box-sizing: border-box; }
         #sidePanel h3 { margin: 0 0 15px 0; color: #ffcc00; font-size: 14px; text-align: center; border-bottom: 1px solid #444; padding-bottom: 10px; }
-        .team-score { background: rgba(255,255,255,0.05); padding: 8px; margin-bottom: 10px; border-radius: 4px; font-weight: bold; font-size: 14px; display: flex; justify-content: space-between;}
+        
+        #scoreList { flex-grow: 1; overflow-y: auto; margin-bottom: 10px; }
+        .team-score { background: rgba(255,255,255,0.05); padding: 8px; margin-bottom: 10px; border-radius: 4px; font-weight: bold; font-size: 13px; display: flex; justify-content: space-between;}
         .lb-row { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px; padding: 2px 10px; color: #aaa; }
         .lb-dead { opacity: 0.3; text-decoration: line-through; }
+
+        /* Sistema de Chat Integrado al Panel */
+        #chatBox { display: none; flex-direction: column; height: 180px; background: rgba(0,0,0,0.5); border-radius: 4px; border: 1px solid #444; }
+        #chatMessages { flex-grow: 1; overflow-y: auto; padding: 5px; font-size: 11px; display: flex; flex-direction: column; gap: 4px; word-wrap: break-word; }
+        .chat-msg { background: rgba(255,255,255,0.1); padding: 4px 6px; border-radius: 3px; }
+        #chatInput { width: 100%; border: none; border-top: 1px solid #444; background: rgba(20,20,20,0.9); color: white; padding: 8px; box-sizing: border-box; font-size: 12px; outline: none; border-radius: 0 0 4px 4px; }
+        #chatInput:focus { background: #111; border-top-color: #ffcc00; }
 
         #hud { position: absolute; top: 0; left: 0; width: 900px; height: 550px; pointer-events: none; }
         #killfeed { position: absolute; top: 10px; right: 10px; display: flex; flex-direction: column; align-items: flex-end; }
         .kf-item { background: rgba(20,20,20,0.8); padding: 5px 10px; margin-bottom: 5px; font-size: 11px; border-radius: 3px; }
-        
-        /* Sistema de Chat */
-        #chatBox { position: absolute; bottom: 10px; left: 10px; width: 300px; display: none; flex-direction: column; z-index: 5; pointer-events: auto; }
-        #chatMessages { max-height: 120px; overflow-y: auto; background: rgba(0,0,0,0.6); border-radius: 4px 4px 0 0; padding: 5px; font-size: 12px; display: flex; flex-direction: column; gap: 3px; }
-        .chat-msg { background: rgba(255,255,255,0.1); padding: 4px 8px; border-radius: 3px; text-shadow: 1px 1px 1px #000; }
-        #chatInput { width: 100%; border-radius: 0 0 4px 4px; border: 1px solid #444; border-top: none; background: rgba(20,20,20,0.9); padding: 8px; box-sizing: border-box; }
 
         #hostSettings { position: absolute; right: 20px; bottom: 20px; background: rgba(0,0,0,0.95); padding: 15px; border-radius: 8px; border: 1px solid #ffcc00; width: 200px; font-size: 11px; display: none; z-index: 5; }
         #hostSettings label { display: block; margin-top: 8px; color: #aaa; font-weight: bold; }
         #hostSettings select { width: 100%; margin-top: 4px; }
 
-        #msgOverlay { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(255,0,0,0.9); color: white; padding: 10px 20px; border-radius: 5px; font-weight: bold; display: none; z-index: 100; }
+        #msgOverlay { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(255,0,0,0.9); color: white; padding: 10px 20px; border-radius: 5px; font-weight: bold; display: none; z-index: 100; text-align: center; }
         
         #mobileControls { position: fixed; bottom: 20px; left: 0; width: 100%; height: 150px; display: none; justify-content: space-between; padding: 0 40px; box-sizing: border-box; z-index: 50; pointer-events: none; }
         .joystick-zone { width: 120px; height: 120px; background: rgba(255,255,255,0.1); border-radius: 50%; position: relative; pointer-events: auto; }
@@ -46,7 +50,7 @@
         .react-btn { background: rgba(0,0,0,0.6); border: 1px solid #ffcc00; border-radius: 50%; width: 40px; height: 40px; font-size: 20px; }
 
         .hidden { display: none !important; }
-        @media (max-width: 950px) { #mainContainer { flex-direction: column; align-items: center; } canvas { width: 100%; max-width: 900px; } #sidePanel { width: 90%; } }
+        @media (max-width: 950px) { #mainContainer { flex-direction: column; align-items: center; } canvas { width: 100%; max-width: 900px; } #sidePanel { width: 90%; height: 400px; } }
     </style>
 </head>
 <body>
@@ -88,18 +92,16 @@
     <div id="mainContainer">
         <div style="position: relative; width: 100%; max-width: 900px;">
             <canvas id="gameCanvas"></canvas>
-            <div id="hud">
-                <div id="killfeed"></div>
-                <div id="chatBox">
-                    <div id="chatMessages"></div>
-                    <input type="text" id="chatInput" placeholder="Escribe y presiona Enter..." maxlength="40">
-                </div>
-            </div>
+            <div id="hud"><div id="killfeed"></div></div>
         </div>
         
         <div id="sidePanel" class="hidden">
             <h3 id="lbTitle">🏆 RANKING</h3>
             <div id="scoreList"></div>
+            <div id="chatBox">
+                <div id="chatMessages"></div>
+                <input type="text" id="chatInput" placeholder="Chat... (Enter para enviar)" maxlength="40">
+            </div>
         </div>
     </div>
 
@@ -107,14 +109,21 @@
     <div id="mobileReactions"><button class="react-btn" onclick="sendReaction('🤬')">🤬</button><button class="react-btn" onclick="sendReaction('😂')">😂</button><button class="react-btn" onclick="sendReaction('💀')">💀</button><button class="react-btn" onclick="sendReaction('🏳️')">🏳️</button></div>
 
     <script>
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        canvas.width = 900; canvas.height = 550;
+        const canvas = document.getElementById('gameCanvas'); const ctx = canvas.getContext('2d'); canvas.width = 900; canvas.height = 550;
 
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         if(isMobile) { document.getElementById('mobileControls').style.display = 'flex'; document.getElementById('mobileReactions').style.display = 'flex'; }
 
-        const networkConfig = { config: { 'iceServers': [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' }] } };
+        // RED GLOBAL MEJORADA: Solo servidores de Google de alta disponibilidad. Chau servidores gratuitos saturados.
+        const networkConfig = { 
+            config: { 
+                'iceServers': [
+                    { urls: 'stun:stun.l.google.com:19302' }, 
+                    { urls: 'stun:stun1.l.google.com:19302' },
+                    { urls: 'stun:stun2.l.google.com:19302' }
+                ] 
+            } 
+        };
 
         const mapList = [
             { name: "Arena Vacía", bg: "#1a1a1a", wall: "#444", furniture: [], hazards: [] },
@@ -124,13 +133,12 @@
         ];
 
         let peer, connections = [], isHost = false, myId = "";
-        let players = {}, bullets = [], boosters = [], particles = [], killfeedData = [], chatQueue = [], zoneSize = 0;
+        let players = {}, bullets = [], boosters = [], particles = [], killfeedData = [], zoneSize = 0;
         let lastShot = 0, mouseX = 450, mouseY = 275, isShooting = false;
         let config = { mapIdx: 1, mode: 'teams', zoneSpeed: 0.08, moveSpeed: 4.5, shootCD: 1000 };
-
         const brandColors = { "Crocs": "#00ffcc", "Kappa": "#ff4757", "Reebok": "#2ecc71", "Piccadilly": "#f1c40f" };
 
-        function showMsg(txt, duration = 3000) { const m = document.getElementById('msgOverlay'); m.innerText = txt; m.style.display = 'block'; if(duration) setTimeout(() => m.style.display = 'none', duration); }
+        function showMsg(txt, duration = 3000) { const m = document.getElementById('msgOverlay'); m.innerHTML = txt; m.style.display = 'block'; if(duration) setTimeout(() => m.style.display = 'none', duration); }
 
         function connectToGame() {
             const rid = document.getElementById('customId').value.toUpperCase();
@@ -140,7 +148,23 @@
             
             showMsg("Buscando partida...", 0);
             peer = new Peer(null, networkConfig);
-            peer.on('open', (id) => { myId = id; const conn = peer.connect(rid, { reliable: true }); conn.on('open', () => { isHost = false; connections.push(conn); finalizeSetup(rid, finalName, brand); }); });
+            
+            peer.on('open', (id) => { 
+                myId = id; 
+                const conn = peer.connect(rid, { reliable: true }); 
+                
+                // DETECTOR DE BLOQUEO DE RED CORPORATIVA
+                let connectionTimeout = setTimeout(() => {
+                    showMsg("La sala existe, pero tu red bloquea la conexión P2P.<br><br><span style='font-size:12px;font-weight:normal;'>Posible Firewall bloqueando WebRTC.</span>", 6000);
+                    peer.destroy();
+                }, 6000);
+
+                conn.on('open', () => { 
+                    clearTimeout(connectionTimeout);
+                    isHost = false; connections.push(conn); finalizeSetup(rid, finalName, brand); 
+                }); 
+            });
+            
             peer.on('error', err => {
                 if(err.type === 'peer-unavailable') { showMsg("Creando partida...", 0); peer.destroy(); setTimeout(() => createAsHost(rid, finalName, brand), 500); } 
                 else { showMsg("Error de red: " + err.type); }
@@ -151,7 +175,7 @@
             isHost = true; peer = new Peer(rid, networkConfig);
             peer.on('open', id => { document.getElementById('hostSettings').style.display = 'block'; applySettings(); finalizeSetup(id, finalName, brand); });
             peer.on('connection', conn => { conn.on('open', () => { connections.push(conn); conn.send({type:'sync', config}); }); conn.on('data', d => handleData(d, conn.peer)); });
-            peer.on('error', err => { if(err.type === 'unavailable-id') showMsg("Ese ID ya está en uso."); });
+            peer.on('error', err => { if(err.type === 'unavailable-id') showMsg("Ese ID ya está en uso. Elegí otro."); });
         }
 
         function finalizeSetup(id, name, brand) {
@@ -163,14 +187,10 @@
 
         function applySettings() {
             if(!isHost) return;
-            config.mapIdx = parseInt(document.getElementById('cfgMap').value);
-            config.mode = document.getElementById('cfgMode').value;
-            config.zoneSpeed = parseFloat(document.getElementById('cfgZone').value);
-            config.shootCD = parseInt(document.getElementById('cfgShoot').value);
-            zoneSize = 0; boosters = []; bullets = [];
-            for(let id in players) resetPlayer(id);
-            connections.forEach(c => c.send({type:'sync', config}));
-            updateLeaderboard();
+            config.mapIdx = parseInt(document.getElementById('cfgMap').value); config.mode = document.getElementById('cfgMode').value;
+            config.zoneSpeed = parseFloat(document.getElementById('cfgZone').value); config.shootCD = parseInt(document.getElementById('cfgShoot').value);
+            zoneSize = 0; boosters = []; bullets = []; for(let id in players) resetPlayer(id);
+            connections.forEach(c => c.send({type:'sync', config})); updateLeaderboard();
         }
 
         function getSafeSpawn() {
@@ -181,67 +201,38 @@
 
         function resetPlayer(id) {
             let p = players[id]; if(!p) return; let s = getSafeSpawn();
-            p.dead = false; p.shield = false; p.speedBoost = 0; p.weapon = 'normal'; p.weaponExp = 0;
-            p.x = s.x; p.y = s.y; p.targetX = s.x; p.targetY = s.y;
+            p.dead = false; p.shield = false; p.speedBoost = 0; p.weapon = 'normal'; p.weaponExp = 0; p.x = s.x; p.y = s.y; p.targetX = s.x; p.targetY = s.y;
         }
 
         function handleData(d, sender) {
             if(d.type === 'sync') { config = d.config; zoneSize = 0; updateLeaderboard(); }
-            if(d.type === 'state') { 
-                players = d.players; bullets = d.bullets; boosters = d.boosters; zoneSize = d.zone; 
-                if(d.kill) addKillfeed(d.kill.killer, d.kill.victim, d.kill.color);
-                if(d.explosions) particles = particles.concat(d.explosions);
-                updateLeaderboard(); 
-            }
+            if(d.type === 'state') { players = d.players; bullets = d.bullets; boosters = d.boosters; zoneSize = d.zone; if(d.kill) addKillfeed(d.kill.killer, d.kill.victim, d.kill.color); if(d.explosions) particles = particles.concat(d.explosions); updateLeaderboard(); }
             if(d.type === 'chatBroadcast') renderChat(d.msg.sender, d.msg.color, d.msg.text);
             if(isHost) {
-                if(d.type === 'input') {
-                    if(!players[sender]) initPlayer(sender, d.name, d.brand);
-                    players[sender].targetX = d.x; players[sender].targetY = d.y;
-                    if(d.shoot) shoot(sender, d.angle);
-                    if(d.reaction) players[sender].react = { emoji: d.reaction, exp: Date.now() + 2500 };
-                }
-                if(d.type === 'chat') {
-                    let msgObj = { sender: players[sender].name, color: players[sender].color, text: d.text };
-                    connections.forEach(c => c.send({type:'chatBroadcast', msg: msgObj})); renderChat(msgObj.sender, msgObj.color, msgObj.text);
-                }
+                if(d.type === 'input') { if(!players[sender]) initPlayer(sender, d.name, d.brand); players[sender].targetX = d.x; players[sender].targetY = d.y; if(d.shoot) shoot(sender, d.angle); if(d.reaction) players[sender].react = { emoji: d.reaction, exp: Date.now() + 2500 }; }
+                if(d.type === 'chat') { let msgObj = { sender: players[sender].name, color: players[sender].color, text: d.text }; connections.forEach(c => c.send({type:'chatBroadcast', msg: msgObj})); renderChat(msgObj.sender, msgObj.color, msgObj.text); }
             }
         }
 
-        function initPlayer(id, name, brand) { 
-            let s = getSafeSpawn();
-            players[id] = {name, brand, x:s.x, y:s.y, targetX:s.x, targetY:s.y, color: brandColors[brand], score:0, dead:false, shield:false, speedBoost:0, weapon:'normal', weaponExp:0, radius:12, react:null}; 
-        }
+        function initPlayer(id, name, brand) { let s = getSafeSpawn(); players[id] = {name, brand, x:s.x, y:s.y, targetX:s.x, targetY:s.y, color: brandColors[brand], score:0, dead:false, shield:false, speedBoost:0, weapon:'normal', weaponExp:0, radius:12, react:null}; }
 
-        function sendReaction(emoji) {
-            if(isHost && players[myId]) players[myId].react = { emoji, exp: Date.now() + 2500 };
-            else if(connections[0]) connections[0].send({type:'input', x:players[myId].x, y:players[myId].y, name:players[myId].name, brand:players[myId].brand, reaction: emoji});
-        }
+        function sendReaction(emoji) { if(isHost && players[myId]) players[myId].react = { emoji, exp: Date.now() + 2500 }; else if(connections[0]) connections[0].send({type:'input', x:players[myId].x, y:players[myId].y, name:players[myId].name, brand:players[myId].brand, reaction: emoji}); }
 
         function sendChat() {
             let input = document.getElementById('chatInput'); let txt = input.value.trim(); if(!txt) return;
-            if(isHost) {
-                let msgObj = { sender: players[myId].name, color: players[myId].color, text: txt };
-                connections.forEach(c => c.send({type:'chatBroadcast', msg: msgObj})); renderChat(msgObj.sender, msgObj.color, msgObj.text);
-            } else if(connections[0]) { connections[0].send({type:'chat', text: txt}); }
+            if(isHost) { let msgObj = { sender: players[myId].name, color: players[myId].color, text: txt }; connections.forEach(c => c.send({type:'chatBroadcast', msg: msgObj})); renderChat(msgObj.sender, msgObj.color, msgObj.text); } 
+            else if(connections[0]) { connections[0].send({type:'chat', text: txt}); }
             input.value = ''; input.blur();
         }
 
-        function renderChat(sender, color, text) {
-            const box = document.getElementById('chatMessages');
-            box.innerHTML += `<div class="chat-msg"><b style="color:${color}">${sender}:</b> ${text}</div>`;
-            box.scrollTop = box.scrollHeight;
-        }
+        function renderChat(sender, color, text) { const box = document.getElementById('chatMessages'); box.innerHTML += `<div class="chat-msg"><b style="color:${color}">${sender}:</b> ${text}</div>`; box.scrollTop = box.scrollHeight; }
 
         window.addEventListener('keydown', e => {
             if(document.activeElement === document.getElementById('chatInput')) { if(e.key === 'Enter') sendChat(); return; }
             if(e.key === '1') sendReaction('🤬'); if(e.key === '2') sendReaction('😂'); if(e.key === '3') sendReaction('💀'); if(e.key === '4') sendReaction('🏳️');
         });
 
-        if(!isMobile) {
-            window.addEventListener('mousemove', e => { const r = canvas.getBoundingClientRect(); mouseX = (e.clientX - r.left) * (canvas.width / r.width); mouseY = (e.clientY - r.top) * (canvas.height / r.height); });
-            window.addEventListener('mousedown', () => isShooting = true); window.addEventListener('mouseup', () => isShooting = false);
-        }
+        if(!isMobile) { window.addEventListener('mousemove', e => { const r = canvas.getBoundingClientRect(); mouseX = (e.clientX - r.left) * (canvas.width / r.width); mouseY = (e.clientY - r.top) * (canvas.height / r.height); }); window.addEventListener('mousedown', () => isShooting = true); window.addEventListener('mouseup', () => isShooting = false); }
 
         function setupJoystick(zoneId, knobId, isAim) {
             const zone = document.getElementById(zoneId); const knob = document.getElementById(knobId); let active = false, center = {x:0, y:0};
@@ -259,36 +250,22 @@
         }
         if(isMobile) { setupJoystick('joyLeft', 'knobLeft', false); setupJoystick('joyRight', 'knobRight', true); }
 
-        function checkCollision(x, y, radius) {
-            return mapList[config.mapIdx].furniture.some(f => {
-                let tx = x, ty = y; if (x < f.x) tx = f.x; else if (x > f.x + f.w) tx = f.x + f.w; if (y < f.y) ty = f.y; else if (y > f.y + f.h) ty = f.y + f.h;
-                return ((x - tx)*(x - tx) + (y - ty)*(y - ty)) <= (radius*radius);
-            });
-        }
-
+        function checkCollision(x, y, radius) { return mapList[config.mapIdx].furniture.some(f => { let tx = x, ty = y; if (x < f.x) tx = f.x; else if (x > f.x + f.w) tx = f.x + f.w; if (y < f.y) ty = f.y; else if (y > f.y + f.h) ty = f.y + f.h; return ((x - tx)*(x - tx) + (y - ty)*(y - ty)) <= (radius*radius); }); }
         function createExplosion(x, y, color) { let p = []; for(let i=0; i<30; i++) p.push({x, y, vx:(Math.random()-0.5)*15, vy:(Math.random()-0.5)*15, life:1, color}); return p; }
         function addKillfeed(killer, victim, color) { killfeedData.push({ text: `<span style="color:${color}">${killer}</span> 🔫 ${victim}`, expire: Date.now() + 4000 }); }
 
         function updateLeaderboard() {
-            let html = "";
-            document.getElementById('lbTitle').innerText = config.mode === 'teams' ? "🏆 POR EQUIPOS" : "🏆 TODOS VS TODOS";
-            
+            let html = ""; document.getElementById('lbTitle').innerText = config.mode === 'teams' ? "🏆 POR EQUIPOS" : "🏆 TODOS VS TODOS";
             if(config.mode === 'teams') {
-                let teams = { "Crocs": 0, "Kappa": 0, "Reebok": 0, "Piccadilly": 0 };
-                Object.values(players).forEach(p => teams[p.brand] += p.score);
+                let teams = { "Crocs": 0, "Kappa": 0, "Reebok": 0, "Piccadilly": 0 }; Object.values(players).forEach(p => teams[p.brand] += p.score);
                 Object.keys(teams).sort((a,b) => teams[b] - teams[a]).forEach(t => {
                     if(teams[t] > 0 || Object.values(players).some(p => p.brand === t)) {
                         html += `<div class="team-score" style="color:${brandColors[t]}"><span>[${t[0]}] ${t}</span><span>${teams[t]} pts</span></div>`;
-                        Object.values(players).filter(p => p.brand === t).sort((a,b) => b.score - a.score).forEach(p => {
-                            html += `<div class="lb-row ${p.dead?'lb-dead':''}"><span style="overflow:hidden; text-overflow:ellipsis;">${p.name}</span><span>${p.score}</span></div>`;
-                        });
+                        Object.values(players).filter(p => p.brand === t).sort((a,b) => b.score - a.score).forEach(p => { html += `<div class="lb-row ${p.dead?'lb-dead':''}"><span style="overflow:hidden; text-overflow:ellipsis;">${p.name}</span><span>${p.score}</span></div>`; });
                     }
                 });
             } else {
-                Object.values(players).sort((a,b) => b.score - a.score).forEach((p, i) => {
-                    let icon = i === 0 && p.score > 0 ? "👑" : "";
-                    html += `<div class="lb-row ${p.dead?'lb-dead':''}"><span style="color:${p.color};">[${p.brand[0]}] ${icon} ${p.name}</span><span>${p.score}</span></div>`;
-                });
+                Object.values(players).sort((a,b) => b.score - a.score).forEach((p, i) => { let icon = i === 0 && p.score > 0 ? "👑" : ""; html += `<div class="lb-row ${p.dead?'lb-dead':''}"><span style="color:${p.color};">[${p.brand[0]}] ${icon} ${p.name}</span><span>${p.score}</span></div>`; });
             }
             document.getElementById('scoreList').innerHTML = html;
         }
@@ -301,8 +278,7 @@
         }
 
         function gameLoop() {
-            let map = mapList[config.mapIdx];
-            document.getElementById('mapName').innerText = map.name;
+            let map = mapList[config.mapIdx]; document.getElementById('mapName').innerText = map.name;
             ctx.fillStyle = map.bg; ctx.fillRect(0,0,canvas.width,canvas.height);
             
             map.hazards.forEach(h => {
@@ -314,30 +290,19 @@
 
             if(isHost) {
                 if(players[myId] && !isMobile) { players[myId].targetX = mouseX; players[myId].targetY = mouseY; }
-                if(players[myId] && isShooting && !players[myId].dead && Date.now() - lastShot > config.shootCD) {
-                    lastShot = Date.now(); shoot(myId, Math.atan2(mouseY - players[myId].y, mouseX - players[myId].x));
-                }
+                if(players[myId] && isShooting && !players[myId].dead && Date.now() - lastShot > config.shootCD) { lastShot = Date.now(); shoot(myId, Math.atan2(mouseY - players[myId].y, mouseX - players[myId].x)); }
                 zoneSize += config.zoneSpeed; let currentExplosions = [], killData = null;
 
-                if(Math.random() < 0.008 && boosters.length < 5) {
-                    let bx = Math.random()*(canvas.width-100)+50, by = Math.random()*(canvas.height-100)+50;
-                    if(!checkCollision(bx, by, 15)) boosters.push({x: bx, y: by, type: ['🛡️', '☕', '🔫', '🎯'][Math.floor(Math.random()*4)]});
-                }
+                if(Math.random() < 0.008 && boosters.length < 5) { let bx = Math.random()*(canvas.width-100)+50, by = Math.random()*(canvas.height-100)+50; if(!checkCollision(bx, by, 15)) boosters.push({x: bx, y: by, type: ['🛡️', '☕', '🔫', '🎯'][Math.floor(Math.random()*4)]}); }
 
                 bullets.forEach((b, i) => {
                     b.x += Math.cos(b.angle)*b.speed; b.y += Math.sin(b.angle)*b.speed;
                     if(b.x < 0 || b.x > canvas.width || b.y < 0 || b.y > canvas.height || checkCollision(b.x, b.y, b.size)) { bullets.splice(i,1); return; }
                     for(let id in players) {
-                        let p = players[id];
-                        let isEnemy = config.mode === 'ffa' ? id !== b.owner : id !== b.owner && players[b.owner].brand !== p.brand;
-                        
+                        let p = players[id]; let isEnemy = config.mode === 'ffa' ? id !== b.owner : id !== b.owner && players[b.owner].brand !== p.brand;
                         if(!p.dead && isEnemy && Math.hypot(b.x-p.x, b.y-p.y) < p.radius + b.size) {
                             if(p.shield) { p.shield = false; if(!b.penetrate) bullets.splice(i,1); }
-                            else {
-                                p.dead = true; players[b.owner].score++; currentExplosions = currentExplosions.concat(createExplosion(p.x, p.y, p.color));
-                                killData = { killer: players[b.owner].name, victim: p.name, color: players[b.owner].color };
-                                if(!b.penetrate) bullets.splice(i,1); setTimeout(() => resetPlayer(id), 4000);
-                            }
+                            else { p.dead = true; players[b.owner].score++; currentExplosions = currentExplosions.concat(createExplosion(p.x, p.y, p.color)); killData = { killer: players[b.owner].name, victim: p.name, color: players[b.owner].color }; if(!b.penetrate) bullets.splice(i,1); setTimeout(() => resetPlayer(id), 4000); }
                         }
                     }
                 });
@@ -347,42 +312,22 @@
                     if(p.weapon !== 'normal' && Date.now() > p.weaponExp) p.weapon = 'normal';
                     let dx = p.targetX - p.x, dy = p.targetY - p.y, dist = Math.hypot(dx, dy), actSpd = p.speedBoost > Date.now() ? config.moveSpeed * 1.5 : config.moveSpeed;
 
-                    map.hazards.forEach(h => {
-                        if(h.type === 'coffee' && Math.hypot(p.x-h.x, p.y-h.y) < h.r) actSpd *= 0.4;
-                        if(h.type === 'belt' && p.x>h.x && p.x<h.x+h.w && p.y>h.y && p.y<h.y+h.h) { p.x+=h.dx; p.y+=h.dy; }
-                    });
+                    map.hazards.forEach(h => { if(h.type === 'coffee' && Math.hypot(p.x-h.x, p.y-h.y) < h.r) actSpd *= 0.4; if(h.type === 'belt' && p.x>h.x && p.x<h.x+h.w && p.y>h.y && p.y<h.y+h.h) { p.x+=h.dx; p.y+=h.dy; } });
 
-                    if(dist > actSpd) {
-                        let nx = p.x + (dx/dist)*actSpd, ny = p.y + (dy/dist)*actSpd;
-                        if(!checkCollision(nx, p.y, p.radius)) p.x = nx; if(!checkCollision(p.x, ny, p.radius)) p.y = ny;
-                    }
+                    if(dist > actSpd) { let nx = p.x + (dx/dist)*actSpd, ny = p.y + (dy/dist)*actSpd; if(!checkCollision(nx, p.y, p.radius)) p.x = nx; if(!checkCollision(p.x, ny, p.radius)) p.y = ny; }
                     
-                    if(p.x < zoneSize || p.x > canvas.width-zoneSize || p.y < zoneSize || p.y > canvas.height-zoneSize) {
-                        p.dead = true; currentExplosions = currentExplosions.concat(createExplosion(p.x, p.y, p.color));
-                        killData = { killer: "LA ZONA", victim: p.name, color: "#fff" }; setTimeout(() => resetPlayer(id), 4000);
-                    }
+                    if(p.x < zoneSize || p.x > canvas.width-zoneSize || p.y < zoneSize || p.y > canvas.height-zoneSize) { p.dead = true; currentExplosions = currentExplosions.concat(createExplosion(p.x, p.y, p.color)); killData = { killer: "LA ZONA", victim: p.name, color: "#fff" }; setTimeout(() => resetPlayer(id), 4000); }
 
-                    boosters.forEach((b, bi) => {
-                        if(Math.hypot(p.x - b.x, p.y - b.y) < p.radius + 15) {
-                            if(b.type === '🛡️') p.shield = true; if(b.type === '☕') p.speedBoost = Date.now() + 6000;
-                            if(b.type === '🔫') { p.weapon = 'shotgun'; p.weaponExp = Date.now() + 10000; } if(b.type === '🎯') { p.weapon = 'sniper'; p.weaponExp = Date.now() + 10000; }
-                            boosters.splice(bi, 1);
-                        }
-                    });
+                    boosters.forEach((b, bi) => { if(Math.hypot(p.x - b.x, p.y - b.y) < p.radius + 15) { if(b.type === '🛡️') p.shield = true; if(b.type === '☕') p.speedBoost = Date.now() + 6000; if(b.type === '🔫') { p.weapon = 'shotgun'; p.weaponExp = Date.now() + 10000; } if(b.type === '🎯') { p.weapon = 'sniper'; p.weaponExp = Date.now() + 10000; } boosters.splice(bi, 1); } });
                 }
                 connections.forEach(c => c.send({type:'state', players, bullets, boosters, zone: zoneSize, explosions: currentExplosions, kill: killData}));
                 if(killData) addKillfeed(killData.killer, killData.victim, killData.color); particles = particles.concat(currentExplosions); updateLeaderboard();
             } else if(connections[0] && players[myId]) {
-                if(isShooting && !players[myId].dead && Date.now() - lastShot > config.shootCD) {
-                    lastShot = Date.now(); connections[0].send({type:'input', x:players[myId].targetX, y:players[myId].targetY, name:players[myId].name, brand:players[myId].brand, shoot: true, angle: Math.atan2(mouseY - players[myId].y, mouseX - players[myId].x)});
-                } else {
-                    let tx = isMobile ? players[myId].targetX : mouseX, ty = isMobile ? players[myId].targetY : mouseY;
-                    connections[0].send({type:'input', x:tx, y:ty, name:players[myId].name, brand:players[myId].brand});
-                }
+                if(isShooting && !players[myId].dead && Date.now() - lastShot > config.shootCD) { lastShot = Date.now(); connections[0].send({type:'input', x:players[myId].targetX, y:players[myId].targetY, name:players[myId].name, brand:players[myId].brand, shoot: true, angle: Math.atan2(mouseY - players[myId].y, mouseX - players[myId].x)}); } 
+                else { let tx = isMobile ? players[myId].targetX : mouseX, ty = isMobile ? players[myId].targetY : mouseY; connections[0].send({type:'input', x:tx, y:ty, name:players[myId].name, brand:players[myId].brand}); }
             }
 
-            const kf = document.getElementById('killfeed'); kf.innerHTML = ""; killfeedData = killfeedData.filter(k => k.expire > Date.now());
-            killfeedData.forEach(k => { let d = document.createElement('div'); d.className = 'kf-item'; d.innerHTML = k.text; kf.appendChild(d); });
+            const kf = document.getElementById('killfeed'); kf.innerHTML = ""; killfeedData = killfeedData.filter(k => k.expire > Date.now()); killfeedData.forEach(k => { let d = document.createElement('div'); d.className = 'kf-item'; d.innerHTML = k.text; kf.appendChild(d); });
 
             ctx.fillStyle = "rgba(255, 0, 0, 0.1)"; ctx.fillRect(0, 0, canvas.width, zoneSize); ctx.fillRect(0, canvas.height-zoneSize, canvas.width, zoneSize); ctx.fillRect(0, zoneSize, zoneSize, canvas.height-zoneSize*2); ctx.fillRect(canvas.width-zoneSize, zoneSize, zoneSize, canvas.height-zoneSize*2);
             ctx.strokeStyle = "#ff4444"; ctx.lineWidth = 2; ctx.strokeRect(zoneSize, zoneSize, canvas.width-zoneSize*2, canvas.height-zoneSize*2);
@@ -403,8 +348,7 @@
             }
 
             particles.forEach((p, i) => { p.x += p.vx; p.y += p.vy; p.life -= 0.03; ctx.fillStyle = p.color; ctx.globalAlpha = Math.max(0, p.life); ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, Math.PI*2); ctx.fill(); if(p.life <= 0) particles.splice(i, 1); });
-            ctx.globalAlpha = 1; ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
-            requestAnimationFrame(gameLoop);
+            ctx.globalAlpha = 1; ctx.textAlign = "left"; ctx.textBaseline = "alphabetic"; requestAnimationFrame(gameLoop);
         }
     </script>
 </body>
