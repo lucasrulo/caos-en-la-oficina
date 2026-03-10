@@ -232,12 +232,13 @@
         drawPreview();
 
         // ==========================================
-        // 3. GLOBALES DE JUEGO
+        // 3. GLOBALES DE JUEGO Y MAPAS
         // ==========================================
         const canvas = document.getElementById('gameCanvas'); const ctx = canvas.getContext('2d'); canvas.width = 900; canvas.height = 550;
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         
         let isSuperAdmin = false, hostInterval, renderReq, inputInterval;
+        let lastDrawTime = 0; // Control de FPS
         function toggleHostPanel() { const p = document.getElementById('hostSettings'); p.style.display = p.style.display === 'block' ? 'none' : 'block'; }
 
         const mapList = [
@@ -339,6 +340,7 @@
             if(isMobile) { document.getElementById('mobileControls').style.display = 'flex'; document.getElementById('mobileReactions').style.display = 'flex'; }
 
             let s = getSafeSpawn();
+            mouseX = s.x; mouseY = s.y; // Evitar que salga volando al spawnear
             let myData = { name, color: myColor, baseWeapon: myWeapon, weapon: myWeapon, weaponExp: 0, coins: 0, x:s.x, y:s.y, targetX:s.x, targetY:s.y, score:0, dead:false, shield:false, speedBoost:0, radius:12, react:null, shootAngle: null, hp: 100, maxHp: 100, isBoss: false };
             roomRef.child('players/' + myId).set(myData); roomRef.child('players/' + myId).onDisconnect().remove();
 
@@ -362,11 +364,8 @@
             });
 
             roomRef.child('banned/' + myId).on('value', snap => { if(snap.exists()) { exitGame(); alert("Fuiste expulsado por el Administrador."); } });
-
-            // Todos escuchan la config (por si el Host o Rulo la cambian)
             roomRef.child('config').on('value', snap => { if(snap.exists()) { config = snap.val(); updateLeaderboard(); }});
 
-            // Solo los Clientes escuchan el State (El Host lo escribe)
             if(!isHost) {
                 roomRef.child('state').on('value', snap => {
                     if(snap.exists()) {
@@ -378,17 +377,10 @@
             
             roomRef.child('chat').on('child_added', snap => { let msg = snap.val(); renderChat(msg.sender, msg.color, msg.text); });
             
-            // OPTIMIZACIÓN: Solo enviar posición del mouse 20 veces por segundo, no 60, para evitar trabar Firebase.
             if(inputInterval) clearInterval(inputInterval);
-            inputInterval = setInterval(() => {
-                if(localPlayers[myId] && !localPlayers[myId].dead && roomRef && !isMobile) {
-                    roomRef.child('players/'+myId).update({targetX: mouseX, targetY: mouseY});
-                }
-            }, 50);
+            inputInterval = setInterval(() => { if(localPlayers[myId] && !localPlayers[myId].dead && roomRef && !isMobile) roomRef.child('players/'+myId).update({targetX: mouseX, targetY: mouseY}); }, 50);
 
             gameLoop(); 
-            
-            // EL HOST CORRE LAS FÍSICAS (Rulo ya no las corre salvo que él sea el creador)
             if(isHost) { if(hostInterval) clearInterval(hostInterval); hostInterval = setInterval(hostSyncLoop, 40); }
         }
 
@@ -403,15 +395,50 @@
         function kickPlayer(id) { if(isSuperAdmin || isHost) { roomRef.child('banned/' + id).set(true); roomRef.child('players/' + id).remove(); } }
 
         // ==========================================
-        // 6. LÓGICAS GLOBALES Y CONTROLES
+        // 6. LÓGICAS GLOBALES Y COLISIONES STRICTAS
         // ==========================================
-        function getSafeSpawn() { let x, y, isSafe = false, att = 0; while(!isSafe && att < 200) { x = Math.random()*(canvas.width - 100) + 50; y = Math.random()*(canvas.height - 100) + 50; isSafe = !checkCollision(x, y, 30); att++; } return {x, y}; }
+        
+        // Colisión estándar (Circular vs Rectángulo) - Usada para el movimiento
+        function checkCollision(x, y, radius) { 
+            let map = mapList[config.mapIdx] || mapList[1];
+            return map.furniture.some(f => { let tx = x, ty = y; if (x < f.x) tx = f.x; else if (x > f.x + f.w) tx = f.x + f.w; if (y < f.y) ty = f.y; else if (y > f.y + f.h) ty = f.y + f.h; return ((x - tx)*(x - tx) + (y - ty)*(y - ty)) <= (radius*radius); }); 
+        }
+
+        // ALGORITMO CAJA ESTRICTA PARA EL SPAWN - Garantiza no nacer dentro de muebles
+        function getSafeSpawn(isBoss = false) { 
+            let x, y, isSafe = false, att = 0; 
+            let checkRad = isBoss ? 35 : 25; // Margen gigante
+            let map = mapList[config.mapIdx] || mapList[1];
+
+            while(!isSafe && att < 1000) { 
+                x = Math.random()*(canvas.width - 100) + 50; 
+                y = Math.random()*(canvas.height - 100) + 50; 
+                isSafe = true;
+                for(let i=0; i<map.furniture.length; i++) {
+                    let f = map.furniture[i];
+                    if (x > f.x - checkRad && x < f.x + f.w + checkRad && y > f.y - checkRad && y < f.y + f.h + checkRad) {
+                        isSafe = false; break;
+                    }
+                }
+                att++; 
+            } 
+            if(!isSafe) { x = 450; y = 275; } // Fallback centro
+            return {x, y}; 
+        }
 
         function resetPlayer(id) { 
             let p = localPlayers[id]; if(!p) return;
-            let s = getSafeSpawn(); let isBoss = (config.mode === 'juggernaut' && config.bossId === id);
+            let isBoss = (config.mode === 'juggernaut' && config.bossId === id);
+            let s = getSafeSpawn(isBoss); 
             let pData = { dead: false, shield: false, speedBoost: 0, weapon: isBoss ? 'boss' : p.baseWeapon, x: s.x, y: s.y, targetX: s.x, targetY: s.y, hp: isBoss ? 500 : 100, maxHp: isBoss ? 500 : 100, radius: isBoss ? 22 : 12, isBoss: isBoss };
-            if(id === myId) { p.x = s.x; p.y = s.y; p.dbX = s.x; p.dbY = s.y; roomRef.child('players/' + myId).update(pData); } else if (isHost || isSuperAdmin) roomRef.child('players/' + id).update(pData);
+            
+            if(id === myId) { 
+                p.x = s.x; p.y = s.y; p.dbX = s.x; p.dbY = s.y; 
+                mouseX = s.x; mouseY = s.y; // Anclamos el mouse al nuevo spawn para evitar tirones
+                roomRef.child('players/' + myId).update(pData); 
+            } else if (isHost || isSuperAdmin) {
+                roomRef.child('players/' + id).update(pData);
+            }
         }
 
         function sendReaction(emoji) { roomRef.child('players/' + myId).update({ react: { emoji, exp: Date.now() + 2500 } }); }
@@ -444,7 +471,6 @@
         }
         if(isMobile) { setupJoystick('joyLeft', 'knobLeft', false); setupJoystick('joyRight', 'knobRight', true); }
 
-        function checkCollision(x, y, radius) { return mapList[config.mapIdx].furniture.some(f => { let tx = x, ty = y; if (x < f.x) tx = f.x; else if (x > f.x + f.w) tx = f.x + f.w; if (y < f.y) ty = f.y; else if (y > f.y + f.h) ty = f.y + f.h; return ((x - tx)*(x - tx) + (y - ty)*(y - ty)) <= (radius*radius); }); }
         function createExplosion(x, y, color) { let p = []; for(let i=0; i<35; i++) p.push({x, y, vx:(Math.random()-0.5)*15, vy:(Math.random()-0.5)*15, life:1, color}); return p; }
         function addKillfeed(killer, victim, color) { killfeedData.push({ text: `<span style="color:${color}">${killer}</span> 🔫 ${victim}`, expire: Date.now() + 4000 }); }
 
@@ -520,7 +546,7 @@
                 }
             }
 
-            let map = mapList[config.mapIdx];
+            let map = mapList[config.mapIdx] || mapList[1];
             for(let id in localPlayers) {
                 let p = localPlayers[id]; if(p.dead) continue;
                 let actSpd = p.speedBoost > Date.now() ? config.moveSpeed * 1.5 : config.moveSpeed;
@@ -554,18 +580,26 @@
         }
 
         // ==========================================
-        // 8. RENDER LOOP Y DIBUJOS 
+        // 8. RENDER LOOP Y DIBUJOS (CAPADO A 30 FPS)
         // ==========================================
         function drawPlayerWeapon(pCtx, w, rad) {
             pCtx.fillStyle = "#fff";
             if(w === 'sniper') pCtx.fillRect(rad-2, -3, 20, 6); else if(w === 'shotgun') { pCtx.fillRect(rad-2, -6, 12, 4); pCtx.fillRect(rad-2, 2, 12, 4); } else if(w === 'mg') { pCtx.fillRect(rad-2, -4, 15, 8); pCtx.fillStyle="#555"; pCtx.fillRect(rad+2, -6, 6, 12); } else if(w === 'boss') { pCtx.fillRect(rad-4, -8, 12, 16); } else pCtx.fillRect(rad-2, -3, 8, 6);
         }
 
-        function gameLoop() {
+        function gameLoop(timestamp) {
             if(document.getElementById('lobbyOverlay').style.display !== 'none' || !roomRef) { renderReq = requestAnimationFrame(gameLoop); return; }
+            if (!timestamp) timestamp = performance.now();
             
-            let map = mapList[config.mapIdx]; 
-            document.getElementById('mapName').innerText = map.name; // ESTO ERA LO QUE HACÍA CRASHEAR EL JUEGO
+            // LIMITADOR A 30 FPS
+            if (timestamp - lastDrawTime < 33.3) {
+                renderReq = requestAnimationFrame(gameLoop);
+                return;
+            }
+            lastDrawTime = timestamp;
+            
+            let map = mapList[config.mapIdx] || mapList[1]; 
+            document.getElementById('mapName').innerText = map.name;
 
             if (config.mapIdx === 1 && bgOfficeImg.complete) { ctx.drawImage(bgOfficeImg, 0, 0, canvas.width, canvas.height); } else { ctx.fillStyle = map.bg; ctx.fillRect(0,0,canvas.width,canvas.height); }
             map.hazards.forEach(h => { if(h.type === 'coffee') { ctx.fillStyle = "rgba(78, 52, 46, 0.6)"; ctx.beginPath(); ctx.arc(h.x, h.y, h.r, 0, Math.PI*2); ctx.fill(); } else if (h.type === 'belt') { ctx.fillStyle = "rgba(100, 100, 100, 0.4)"; ctx.fillRect(h.x, h.y, h.w, h.h); ctx.fillStyle = "rgba(255, 255, 255, 0.2)"; ctx.font="20px Arial"; ctx.fillText("⬇", h.x+10, h.y+h.h/2); } });
@@ -622,20 +656,6 @@
             particles.forEach((p, i) => { p.x += p.vx; p.y += p.vy; p.life -= 0.03; ctx.fillStyle = p.color; ctx.globalAlpha = Math.max(0, p.life); ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, Math.PI*2); ctx.fill(); if(p.life <= 0) particles.splice(i, 1); });
             ctx.globalAlpha = 1; 
 
-            // MINIMAPA (Fijo Arriba a la Derecha)
-            let mmW = 150, mmH = 150 * (canvas.height/canvas.width);
-            let mmX = canvas.width - mmW - 10, mmY = 10;
-            ctx.fillStyle = 'rgba(10,10,10,0.85)'; ctx.fillRect(mmX, mmY, mmW, mmH);
-            ctx.strokeStyle = '#ffcc00'; ctx.lineWidth = 2; ctx.strokeRect(mmX, mmY, mmW, mmH);
-            
-            for(let id in localPlayers) {
-                let p = localPlayers[id]; if(p.dead) continue;
-                let px = mmX + (p.x / canvas.width) * mmW; let py = mmY + (p.y / canvas.height) * mmH;
-                ctx.fillStyle = (id === myId) ? '#2ecc71' : (p.isBoss ? '#ff4444' : p.color);
-                ctx.beginPath(); ctx.arc(px, py, id === myId ? 3 : 2, 0, Math.PI*2); ctx.fill();
-            }
-
-            ctx.textAlign = "left"; ctx.textBaseline = "alphabetic"; 
             renderReq = requestAnimationFrame(gameLoop);
         }
     </script>
