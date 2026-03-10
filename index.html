@@ -46,8 +46,7 @@
         #killfeed { position: absolute; top: 10px; right: 10px; display: flex; flex-direction: column; align-items: flex-end; }
         .kf-item { background: rgba(20,20,20,0.8); padding: 4px 8px; margin-bottom: 4px; font-size: 11px; border-radius: 3px; border-left: 2px solid #ff4444; }
         
-        /* Contadores en pantalla */
-        #topHUD { position: absolute; top: 10px; left: 10px; display: flex; gap: 10px; }
+        #topHUD { position: absolute; top: 10px; left: 10px; display: flex; gap: 10px; pointer-events: none; }
         .hud-box { background: rgba(20,20,20,0.9); border: 1px solid #ffcc00; padding: 5px 10px; border-radius: 4px; font-weight: bold; font-size: 14px; color: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.8); }
 
         #sidePanel { background: rgba(15,15,15,0.9); border: 2px solid #333; border-radius: 8px; padding: 12px; width: 220px; height: 100%; min-height: 400px; display: flex; flex-direction: column; box-sizing: border-box; }
@@ -62,8 +61,8 @@
         #chatMessages { flex-grow: 1; overflow-y: auto; padding: 5px; font-size: 11px; display: flex; flex-direction: column; gap: 3px; word-wrap: break-word; }
         .chat-msg { background: rgba(255,255,255,0.1); padding: 4px; border-radius: 3px; }
         #chatInput { width: 100%; border: none; border-top: 1px solid #444; background: rgba(20,20,20,0.9); color: white; padding: 8px; box-sizing: border-box; font-size: 11px; outline: none; border-radius: 0 0 4px 4px; }
+        #chatInput:focus { background: #000; border-top-color: #ffcc00; }
 
-        /* Tienda Modal */
         #shopModal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(15,15,15,0.98); border: 2px solid #3498db; border-radius: 8px; padding: 20px; width: 320px; z-index: 150; display: none; box-shadow: 0 0 30px rgba(0,0,0,0.9); }
         #shopModal h2 { margin: 0 0 10px 0; color: #3498db; text-align: center; border-bottom: 1px solid #444; padding-bottom: 5px; font-size: 18px; }
         .shop-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; }
@@ -86,7 +85,7 @@
         #mobileControls { position: fixed; bottom: 15px; left: 0; width: 100%; height: 110px; display: none; justify-content: space-between; padding: 0 20px; box-sizing: border-box; z-index: 50; pointer-events: none; }
         .joystick-zone { width: 100px; height: 100px; background: rgba(255,255,255,0.1); border-radius: 50%; position: relative; pointer-events: auto; }
         .joystick-knob { width: 36px; height: 36px; background: rgba(255,204,0,0.7); border-radius: 50%; position: absolute; top: 32px; left: 32px; pointer-events: none; }
-        #mobileReactions { position: fixed; bottom: 130px; left: 50%; transform: translateX(-50%); display: none; flex-direction: row; gap: 10px; z-index: 50; }
+        #mobileReactions { position: fixed; bottom: 130px; left: 50%; transform: translateX(-50%); display: none; flex-direction: row; gap: 15px; z-index: 50; }
         .react-btn { background: rgba(0,0,0,0.6); border: 1px solid #ffcc00; border-radius: 50%; width: 36px; height: 36px; font-size: 16px; display: flex; align-items: center; justify-content: center; color: white; cursor: pointer; pointer-events: auto;}
 
         .hidden { display: none !important; }
@@ -183,7 +182,7 @@
 
     <script>
         // ==========================================
-        // 1. CONFIGURACIÓN DE FIREBASE (YA INYECTADA)
+        // 1. CONFIGURACIÓN DE FIREBASE
         // ==========================================
         const firebaseConfig = {
             apiKey: "AIzaSyDxMYI0Q0ICvf7XM-VxMIs08wqaOTSOxBY",
@@ -246,7 +245,6 @@
         let localPlayers = {}, bullets = [], boosters = [], particles = [], killfeedData = [], zoneSize = 0;
         let lastShot = 0, mouseX = 450, mouseY = 275, isShooting = false;
         let config = { mapIdx: 1, mode: 'ffa', zoneSpeed: 0.08, moveSpeed: 5, bossId: null };
-        const ZOOM = 1.6; // Zoom de Cámara
 
         const wpStats = { 'pistol': { cd: 400, dmg: 25, spd: 15, size: 4 }, 'shotgun': { cd: 1200, dmg: 25, spd: 12, size: 3 }, 'sniper': { cd: 2000, dmg: 100, spd: 25, size: 6, pen: true }, 'mg': { cd: 120, dmg: 8, spd: 18, size: 3 } };
         let mgHeat = 0, mgOverheated = false;
@@ -285,7 +283,7 @@
             roomRef.child('players/'+myId+'/coins').set(me.coins - cost);
             if(type === 'shield') roomRef.child('players/'+myId+'/shield').set(true);
             else if(type === 'heal') roomRef.child('players/'+myId+'/hp').set(me.maxHp);
-            else roomRef.child('players/'+myId).update({weapon: type, weaponExp: Date.now() + 3600000}); // Dura 1 hora (hasta morir)
+            else roomRef.child('players/'+myId).update({weapon: type, weaponExp: Date.now() + 3600000});
             toggleShop();
         }
 
@@ -411,7 +409,14 @@
             zone.addEventListener('touchstart', e => { active = true; const r = zone.getBoundingClientRect(); center = {x: r.left + r.width/2, y: r.top + r.height/2}; handleMove(e.touches[0]); });
             zone.addEventListener('touchmove', e => { if(active) handleMove(e.touches[0]); });
             zone.addEventListener('touchend', () => { active = false; knob.style.transform = `translate(0px, 0px)`; if(isAim) isShooting = false; else if(localPlayers[myId]) { roomRef.child('players/'+myId).update({targetX: localPlayers[myId].x, targetY: localPlayers[myId].y}); }});
-            function handleMove(touch) { let dx = touch.clientX - center.x, dy = touch.clientY - center.y, dist = Math.hypot(dx, dy), maxDist = 30; if(dist > maxDist) { dx = (dx/dist)*maxDist; dy = (dy/dist)*maxDist; } knob.style.transform = `translate(${dx}px, ${dy}px)`; if(localPlayers[myId] && !localPlayers[myId].dead) { if(isAim) { mouseX = canvas.width/2 + dx * 8; mouseY = canvas.height/2 + dy * 8; isShooting = dist > 10; } else { roomRef.child('players/'+myId).update({targetX: localPlayers[myId].x + dx * 2.5, targetY: localPlayers[myId].y + dy * 2.5}); } } }
+            function handleMove(touch) { 
+                let dx = touch.clientX - center.x, dy = touch.clientY - center.y, dist = Math.hypot(dx, dy), maxDist = 30; 
+                if(dist > maxDist) { dx = (dx/dist)*maxDist; dy = (dy/dist)*maxDist; } knob.style.transform = `translate(${dx}px, ${dy}px)`; 
+                if(localPlayers[myId] && !localPlayers[myId].dead) { 
+                    if(isAim) { mouseX = localPlayers[myId].x + dx * 8; mouseY = localPlayers[myId].y + dy * 8; isShooting = dist > 10; } 
+                    else { roomRef.child('players/'+myId).update({targetX: localPlayers[myId].x + dx * 2.5, targetY: localPlayers[myId].y + dy * 2.5}); } 
+                } 
+            }
         }
         if(isMobile) { setupJoystick('joyLeft', 'knobLeft', false); setupJoystick('joyRight', 'knobRight', true); }
 
@@ -478,7 +483,7 @@
                             if(newHp <= 0) {
                                 roomRef.child('players/'+id).update({dead: true, hp: 0, x:0, y:0}); 
                                 roomRef.child('players/'+b.owner+'/score').set((localPlayers[b.owner].score || 0) + 1); 
-                                roomRef.child('players/'+b.owner+'/coins').set((localPlayers[b.owner].coins || 0) + 5); // +5 COINS X KILL
+                                roomRef.child('players/'+b.owner+'/coins').set((localPlayers[b.owner].coins || 0) + 5); 
                                 currentExplosions = createExplosion(p.x, p.y, p.color); killData = { killer: localPlayers[b.owner].name, victim: p.name, color: localPlayers[b.owner].color }; 
                                 db.ref('hallOfFame/'+localPlayers[b.owner].name).update({ kills: firebase.database.ServerValue.increment(1), color: localPlayers[b.owner].color });
                                 setTimeout(() => resetPlayer(id), 4000); 
@@ -514,7 +519,7 @@
         }
 
         // ==========================================
-        // 8. RENDER LOOP (Cámara, Niebla y Minimapa)
+        // 8. RENDER LOOP Y MINIMAPA
         // ==========================================
         function drawPlayerWeapon(pCtx, w, rad) {
             pCtx.fillStyle = "#fff";
@@ -524,24 +529,18 @@
         function gameLoop() {
             if(document.getElementById('lobbyOverlay').style.display !== 'none' || !roomRef) { renderReq = requestAnimationFrame(gameLoop); return; }
             
-            let me = localPlayers[myId];
-            let camX = 0, camY = 0;
-            if(me && !me.dead) { camX = canvas.width/2 - me.x * ZOOM; camY = canvas.height/2 - me.y * ZOOM; }
-
-            ctx.clearRect(0,0,canvas.width,canvas.height);
-            ctx.save();
-            ctx.translate(camX, camY); ctx.scale(ZOOM, ZOOM);
-
             let map = mapList[config.mapIdx]; document.getElementById('mapName').innerText = map.name;
             if (config.mapIdx === 1 && bgOfficeImg.complete) { ctx.drawImage(bgOfficeImg, 0, 0, canvas.width, canvas.height); } else { ctx.fillStyle = map.bg; ctx.fillRect(0,0,canvas.width,canvas.height); }
             map.hazards.forEach(h => { if(h.type === 'coffee') { ctx.fillStyle = "rgba(78, 52, 46, 0.6)"; ctx.beginPath(); ctx.arc(h.x, h.y, h.r, 0, Math.PI*2); ctx.fill(); } else if (h.type === 'belt') { ctx.fillStyle = "rgba(100, 100, 100, 0.4)"; ctx.fillRect(h.x, h.y, h.w, h.h); ctx.fillStyle = "rgba(255, 255, 255, 0.2)"; ctx.font="20px Arial"; ctx.fillText("⬇", h.x+10, h.y+h.h/2); } });
             if (config.mapIdx !== 1) { ctx.shadowBlur = 15; ctx.shadowColor = "rgba(0,0,0,0.8)"; ctx.fillStyle = map.wall; map.furniture.forEach(f => ctx.fillRect(f.x, f.y, f.w, f.h)); ctx.shadowBlur = 0; }
 
+            let me = localPlayers[myId];
             if(me && !me.dead) {
-                let wMouseX = (mouseX - camX) / ZOOM; let wMouseY = (mouseY - camY) / ZOOM;
+                if(!isMobile) { roomRef.child('players/'+myId).update({targetX: mouseX, targetY: mouseY}); }
+                
                 let wp = wpStats[me.weapon] || wpStats['pistol'];
                 if(isShooting && !mgOverheated && Date.now() - lastShot > wp.cd) { 
-                    lastShot = Date.now(); roomRef.child('players/'+myId+'/shootAngle').set(Math.atan2(wMouseY - me.y, wMouseX - me.x)); 
+                    lastShot = Date.now(); roomRef.child('players/'+myId+'/shootAngle').set(Math.atan2(mouseY - me.y, mouseX - me.x)); 
                     if(me.weapon === 'mg') { mgHeat += 10; if(mgHeat >= 100) { mgOverheated = true; setTimeout(() => { mgHeat = 0; mgOverheated = false; }, 2000); } }
                 } else if (!isShooting && me.weapon === 'mg' && mgHeat > 0 && !mgOverheated) { mgHeat -= 1; }
             }
@@ -549,17 +548,14 @@
             const kf = document.getElementById('killfeed'); kf.innerHTML = ""; killfeedData = killfeedData.filter(k => k.expire > Date.now()); killfeedData.forEach(k => { let d = document.createElement('div'); d.className = 'kf-item'; d.innerHTML = k.text; kf.appendChild(d); });
 
             ctx.fillStyle = "rgba(255, 0, 0, 0.1)"; ctx.fillRect(0, 0, canvas.width, zoneSize); ctx.fillRect(0, canvas.height-zoneSize, canvas.width, zoneSize); ctx.fillRect(0, zoneSize, zoneSize, canvas.height-zoneSize*2); ctx.fillRect(canvas.width-zoneSize, zoneSize, zoneSize, canvas.height-zoneSize*2); ctx.strokeStyle = "#ff4444"; ctx.lineWidth = 2; ctx.strokeRect(zoneSize, zoneSize, canvas.width-zoneSize*2, canvas.height-zoneSize*2);
-            boosters.forEach(b => { ctx.shadowBlur = 15; ctx.shadowColor = '#fff'; ctx.fillStyle = "rgba(255, 255, 255, 0.9)"; ctx.beginPath(); ctx.arc(b.x, b.y, 14, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur = 0; ctx.fillStyle = "#000"; ctx.font = "16px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(b.type, b.x, b.y+1); });
+            boosters.forEach(b => { ctx.shadowBlur = 15; ctx.shadowColor = b.type === '💊' ? '#ff4757' : '#fff'; ctx.fillStyle = "rgba(255, 255, 255, 0.9)"; ctx.beginPath(); ctx.arc(b.x, b.y, 14, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur = 0; ctx.fillStyle = "#000"; ctx.font = "16px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(b.type, b.x, b.y+1); });
             bullets.forEach(b => { ctx.fillStyle = b.color; ctx.beginPath(); ctx.arc(b.x, b.y, b.size, 0, Math.PI*2); ctx.fill(); });
 
             for(let id in localPlayers) {
                 let p = localPlayers[id]; if(p.dead) continue;
                 if (p.dbX !== undefined && p.dbY !== undefined) { p.x += (p.dbX - p.x) * 0.3; p.y += (p.dbY - p.y) * 0.3; }
                 
-                let angle = 0;
-                if(id === myId) { let wMouseX = (mouseX - camX) / ZOOM; let wMouseY = (mouseY - camY) / ZOOM; angle = Math.atan2(wMouseY - p.y, wMouseX - p.x); }
-                else { angle = Math.atan2(p.targetY - p.y, p.targetX - p.x); }
-
+                let angle = isMobile && isShooting && id === myId ? Math.atan2(mouseY - p.y, mouseX - p.x) : Math.atan2(p.targetY - p.y, p.targetX - p.x);
                 ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(angle);
                 if(p.shield) { ctx.beginPath(); ctx.arc(0,0, p.radius+5, 0, Math.PI*2); ctx.strokeStyle = "#00f2ff"; ctx.lineWidth=3; ctx.stroke(); }
                 ctx.beginPath(); ctx.arc(0,0, p.radius, 0, Math.PI*2); ctx.fillStyle = p.isBoss ? '#8b0000' : p.color; ctx.fill(); ctx.strokeStyle = "#000"; ctx.lineWidth=2; ctx.stroke();
@@ -575,17 +571,8 @@
 
             particles.forEach((p, i) => { p.x += p.vx; p.y += p.vy; p.life -= 0.03; ctx.fillStyle = p.color; ctx.globalAlpha = Math.max(0, p.life); ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, Math.PI*2); ctx.fill(); if(p.life <= 0) particles.splice(i, 1); });
             ctx.globalAlpha = 1; 
-            
-            // NIEBLA DE GUERRA
-            if(me && !me.dead) {
-                let grd = ctx.createRadialGradient(me.x, me.y, 80, me.x, me.y, 300);
-                grd.addColorStop(0, 'rgba(0,0,0,0)'); grd.addColorStop(0.8, 'rgba(0,0,0,0.85)'); grd.addColorStop(1, 'rgba(0,0,0,1)');
-                ctx.fillStyle = grd; ctx.fillRect(me.x - 2000, me.y - 2000, 4000, 4000);
-            }
-            
-            ctx.restore(); // RESTAURAR CÁMARA AL HUD FIJO
 
-            // MINIMAPA (Se dibuja fijo arriba a la derecha, ignorando el zoom)
+            // MINIMAPA (Fijo Arriba a la Derecha)
             let mmW = 150, mmH = 150 * (canvas.height/canvas.width);
             let mmX = canvas.width - mmW - 10, mmY = 10;
             ctx.fillStyle = 'rgba(10,10,10,0.85)'; ctx.fillRect(mmX, mmY, mmW, mmH);
