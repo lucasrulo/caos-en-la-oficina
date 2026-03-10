@@ -35,7 +35,7 @@
         .btn-alt { background: #3498db; color: #fff; } .btn-alt:hover { background: #2980b9; transform: translateY(-2px); }
 
         #ui { width: 100%; background: rgba(15,15,15,0.95); padding: 10px 0; text-align: center; border-bottom: 2px solid #ffcc00; z-index: 10; display: none; }
-        #gameActive { color: #ccc; font-size: 13px; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 15px;}
+        #gameActive { color: #ccc; font-size: 13px; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 15px; flex-wrap: wrap;}
         .exit-btn { background: #e74c3c; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; transition: 0.2s;}
 
         #mainContainer { display: none; gap: 20px; align-items: flex-start; justify-content: center; margin-top: 15px; width: 95%; max-width: 1140px; }
@@ -127,7 +127,10 @@
 
     <div id="ui">
         <div id="gameActive">
-            🔴 SALA: <b id="displayId" style="color: #ffcc00;">-</b> &nbsp;|&nbsp; 🛒 'B' Tienda &nbsp;|&nbsp; ⌨️ 'P' Chat
+            🔴 SALA: <b id="displayId" style="color: #ffcc00;">-</b> 
+            &nbsp;|&nbsp; 🗺️ <span id="mapName">-</span> 
+            &nbsp;|&nbsp; 🛒 'B' Tienda 
+            &nbsp;|&nbsp; ⌨️ 'P' Chat
             <button class="exit-btn" onclick="exitGame()">🚪 SALIR</button>
         </div>
     </div>
@@ -197,8 +200,6 @@
 
         // IMÁGENES CARGADAS
         const bgOfficeImg = new Image(); bgOfficeImg.src = 'https://i.imgur.com/jjGq36r.jpeg';
-        
-        // TUS MONEDAS 
         const coinFront = new Image(); coinFront.src = 'https://i.imgur.com/uWaYS9e.jpeg'; 
         const coinBack = new Image();  coinBack.src = 'https://i.imgur.com/12OIdW8.jpeg';   
 
@@ -236,7 +237,7 @@
         const canvas = document.getElementById('gameCanvas'); const ctx = canvas.getContext('2d'); canvas.width = 900; canvas.height = 550;
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         
-        let isSuperAdmin = false, hostInterval, renderReq;
+        let isSuperAdmin = false, hostInterval, renderReq, inputInterval;
         function toggleHostPanel() { const p = document.getElementById('hostSettings'); p.style.display = p.style.display === 'block' ? 'none' : 'block'; }
 
         const mapList = [
@@ -322,7 +323,9 @@
             if(roomRef) {
                 roomRef.child('players/' + myId).remove();
                 roomRef.child('players').off(); roomRef.child('state').off(); roomRef.child('chat').off(); roomRef.child('config').off(); roomRef.child('banned/' + myId).off();
-                if(hostInterval) clearInterval(hostInterval); if(renderReq) cancelAnimationFrame(renderReq);
+                if(hostInterval) clearInterval(hostInterval); 
+                if(inputInterval) clearInterval(inputInterval);
+                if(renderReq) cancelAnimationFrame(renderReq);
             }
             document.getElementById('ui').style.display = 'none'; document.getElementById('mainContainer').style.display = 'none'; document.getElementById('shopModal').style.display = 'none';
             document.getElementById('lobbyOverlay').style.display = 'flex';
@@ -360,17 +363,33 @@
 
             roomRef.child('banned/' + myId).on('value', snap => { if(snap.exists()) { exitGame(); alert("Fuiste expulsado por el Administrador."); } });
 
-            if(!isHost && !isSuperAdmin) {
+            // Todos escuchan la config (por si el Host o Rulo la cambian)
+            roomRef.child('config').on('value', snap => { if(snap.exists()) { config = snap.val(); updateLeaderboard(); }});
+
+            // Solo los Clientes escuchan el State (El Host lo escribe)
+            if(!isHost) {
                 roomRef.child('state').on('value', snap => {
                     if(snap.exists()) {
                         let state = snap.val(); bullets = state.bullets || []; boosters = state.boosters || []; zoneSize = state.zoneSize || 0;
                         if(state.killData) addKillfeed(state.killData.killer, state.killData.victim, state.killData.color); if(state.explosions) particles = particles.concat(state.explosions);
                     }
                 });
-                roomRef.child('config').on('value', snap => { if(snap.exists()) { config = snap.val(); updateLeaderboard(); }});
             }
+            
             roomRef.child('chat').on('child_added', snap => { let msg = snap.val(); renderChat(msg.sender, msg.color, msg.text); });
-            gameLoop(); if(isHost || isSuperAdmin) { if(hostInterval) clearInterval(hostInterval); hostInterval = setInterval(hostSyncLoop, 40); }
+            
+            // OPTIMIZACIÓN: Solo enviar posición del mouse 20 veces por segundo, no 60, para evitar trabar Firebase.
+            if(inputInterval) clearInterval(inputInterval);
+            inputInterval = setInterval(() => {
+                if(localPlayers[myId] && !localPlayers[myId].dead && roomRef && !isMobile) {
+                    roomRef.child('players/'+myId).update({targetX: mouseX, targetY: mouseY});
+                }
+            }, 50);
+
+            gameLoop(); 
+            
+            // EL HOST CORRE LAS FÍSICAS (Rulo ya no las corre salvo que él sea el creador)
+            if(isHost) { if(hostInterval) clearInterval(hostInterval); hostInterval = setInterval(hostSyncLoop, 40); }
         }
 
         function applySettings() {
@@ -455,7 +474,7 @@
         // 7. MOTOR HOST (Físicas y Drop de Monedas)
         // ==========================================
         function hostSyncLoop() {
-            if((!isHost && !isSuperAdmin) || !localPlayers) return;
+            if(!isHost || !localPlayers) return;
             let currentExplosions = null, killData = null; zoneSize += config.zoneSpeed;
 
             if(Math.random() < 0.05 && boosters.length < 6) { let bx = Math.random()*(canvas.width-100)+50, by = Math.random()*(canvas.height-100)+50; if(!checkCollision(bx, by, 15)) boosters.push({x: bx, y: by, type: ['🛡️', '☕', '💊'][Math.floor(Math.random()*3)]}); }
@@ -523,7 +542,10 @@
                         if(b.type === '🛡️') roomRef.child('players/'+id+'/shield').set(true); 
                         else if(b.type === '☕') roomRef.child('players/'+id+'/speedBoost').set(Date.now() + 6000); 
                         else if(b.type === '💊') roomRef.child('players/'+id+'/hp').set(Math.min(p.maxHp, p.hp + 50));
-                        else if(b.type === 'COIN') roomRef.child('players/'+id+'/coins').set((p.coins || 0) + 5);
+                        else if(b.type === 'COIN') {
+                            roomRef.child('players/'+id+'/coins').set((p.coins || 0) + 5);
+                            roomRef.child('players/'+id+'/hp').set(Math.min(p.maxHp, p.hp + 15)); // Extra curar un poco al agarrar moneda
+                        }
                         boosters.splice(bi, 1); 
                     }
                 }
@@ -542,15 +564,15 @@
         function gameLoop() {
             if(document.getElementById('lobbyOverlay').style.display !== 'none' || !roomRef) { renderReq = requestAnimationFrame(gameLoop); return; }
             
-            let map = mapList[config.mapIdx]; document.getElementById('mapName').innerText = map.name;
+            let map = mapList[config.mapIdx]; 
+            document.getElementById('mapName').innerText = map.name; // ESTO ERA LO QUE HACÍA CRASHEAR EL JUEGO
+
             if (config.mapIdx === 1 && bgOfficeImg.complete) { ctx.drawImage(bgOfficeImg, 0, 0, canvas.width, canvas.height); } else { ctx.fillStyle = map.bg; ctx.fillRect(0,0,canvas.width,canvas.height); }
             map.hazards.forEach(h => { if(h.type === 'coffee') { ctx.fillStyle = "rgba(78, 52, 46, 0.6)"; ctx.beginPath(); ctx.arc(h.x, h.y, h.r, 0, Math.PI*2); ctx.fill(); } else if (h.type === 'belt') { ctx.fillStyle = "rgba(100, 100, 100, 0.4)"; ctx.fillRect(h.x, h.y, h.w, h.h); ctx.fillStyle = "rgba(255, 255, 255, 0.2)"; ctx.font="20px Arial"; ctx.fillText("⬇", h.x+10, h.y+h.h/2); } });
             if (config.mapIdx !== 1) { ctx.shadowBlur = 15; ctx.shadowColor = "rgba(0,0,0,0.8)"; ctx.fillStyle = map.wall; map.furniture.forEach(f => ctx.fillRect(f.x, f.y, f.w, f.h)); ctx.shadowBlur = 0; }
 
             let me = localPlayers[myId];
             if(me && !me.dead) {
-                if(!isMobile) { roomRef.child('players/'+myId).update({targetX: mouseX, targetY: mouseY}); }
-                
                 let wp = wpStats[me.weapon] || wpStats['pistol'];
                 if(isShooting && !mgOverheated && Date.now() - lastShot > wp.cd) { 
                     lastShot = Date.now(); roomRef.child('players/'+myId+'/shootAngle').set(Math.atan2(mouseY - me.y, mouseX - me.x)); 
@@ -569,7 +591,7 @@
                     let w = 24 * Math.abs(scale); let h = 24; 
 
                     ctx.shadowBlur = 10; ctx.shadowColor = '#ffcc00';
-                    if(img.complete) { ctx.drawImage(img, b.x - w/2, b.y - h/2, w, h); } 
+                    if(img.complete && w > 0.5) { ctx.drawImage(img, b.x - w/2, b.y - h/2, w, h); } 
                     else { ctx.fillStyle = "gold"; ctx.beginPath(); ctx.arc(b.x, b.y, 10 * Math.abs(scale), 0, Math.PI*2); ctx.fill(); }
                     ctx.shadowBlur = 0;
                 } else {
@@ -599,8 +621,8 @@
 
             particles.forEach((p, i) => { p.x += p.vx; p.y += p.vy; p.life -= 0.03; ctx.fillStyle = p.color; ctx.globalAlpha = Math.max(0, p.life); ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, Math.PI*2); ctx.fill(); if(p.life <= 0) particles.splice(i, 1); });
             ctx.globalAlpha = 1; 
-            
-            // MINIMAPA 
+
+            // MINIMAPA (Fijo Arriba a la Derecha)
             let mmW = 150, mmH = 150 * (canvas.height/canvas.width);
             let mmX = canvas.width - mmW - 10, mmY = 10;
             ctx.fillStyle = 'rgba(10,10,10,0.85)'; ctx.fillRect(mmX, mmY, mmW, mmH);
