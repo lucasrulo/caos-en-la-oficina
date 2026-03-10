@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Office Chaos: Rulo Admin Edition</title>
+    <title>Office Chaos: Warzone Edition</title>
     
     <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-database-compat.js"></script>
@@ -11,7 +11,6 @@
     <style>
         body { margin: 0; background: #0a0a0a; color: #eee; font-family: 'Segoe UI', sans-serif; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; height: 100vh; touch-action: none; }
         
-        /* Nuevo Lobby Moderno */
         #lobbyOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, #2a2a2a, #000); z-index: 200; display: flex; justify-content: center; align-items: center; overflow-y: auto; padding: 20px; box-sizing: border-box; }
         .lobby-card { background: rgba(20,20,20,0.95); border: 2px solid #ffcc00; border-radius: 12px; padding: 30px; width: 100%; max-width: 500px; box-shadow: 0 15px 40px rgba(0,0,0,0.8); display: flex; flex-direction: column; gap: 20px; }
         .lobby-title { text-align: center; margin: 0; color: #ffcc00; font-size: 24px; text-transform: uppercase; letter-spacing: 2px; }
@@ -19,32 +18,26 @@
         .setup-section { display: flex; flex-direction: column; gap: 10px; }
         .setup-section label { font-size: 12px; color: #aaa; font-weight: bold; text-transform: uppercase; }
         .input-text { width: 100%; padding: 12px; border-radius: 6px; border: 1px solid #444; background: #111; color: #fff; font-size: 14px; outline: none; box-sizing: border-box; }
-        .input-text:focus { border-color: #ffcc00; }
         
-        /* Grilla de Colores */
         .color-grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 8px; }
         .color-btn { width: 100%; aspect-ratio: 1; border-radius: 50%; border: 2px solid transparent; cursor: pointer; transition: 0.2s; }
-        .color-btn:hover { transform: scale(1.1); }
         .color-btn.selected { border-color: #fff; transform: scale(1.2); box-shadow: 0 0 10px rgba(255,255,255,0.5); }
         
-        /* Selector de Armas */
         .weapon-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
         .weapon-btn { background: #222; border: 1px solid #444; border-radius: 6px; padding: 10px; cursor: pointer; color: #ccc; font-size: 12px; text-align: center; transition: 0.2s; font-weight: bold; }
         .weapon-btn.selected { background: rgba(255,204,0,0.2); border-color: #ffcc00; color: #ffcc00; }
         
-        /* Preview y Botones */
         .preview-container { display: flex; align-items: center; justify-content: center; gap: 20px; background: #111; border-radius: 8px; padding: 15px; border: 1px solid #333; }
         canvas#previewCanvas { width: 80px; height: 80px; background: #1a1a1a; border-radius: 8px; border: 1px solid #444; }
         .lobby-actions { display: flex; gap: 10px; }
-        .btn-main { flex: 1; padding: 15px; background: #ffcc00; color: #000; border: none; border-radius: 6px; font-weight: bold; font-size: 16px; cursor: pointer; text-transform: uppercase; transition: 0.2s; }
-        .btn-main:hover { background: #e6b800; transform: translateY(-2px); }
-        .btn-alt { flex: 1; padding: 15px; background: #3498db; color: #fff; border: none; border-radius: 6px; font-weight: bold; font-size: 16px; cursor: pointer; text-transform: uppercase; transition: 0.2s; }
-        .btn-alt:hover { background: #2980b9; transform: translateY(-2px); }
+        .btn-main, .btn-alt { flex: 1; padding: 15px; border: none; border-radius: 6px; font-weight: bold; font-size: 16px; cursor: pointer; text-transform: uppercase; transition: 0.2s; }
+        .btn-main { background: #ffcc00; color: #000; } .btn-main:hover { background: #e6b800; transform: translateY(-2px); }
+        .btn-alt { background: #3498db; color: #fff; } .btn-alt:hover { background: #2980b9; transform: translateY(-2px); }
 
-        /* UI Superior (In-game) */
         #ui { width: 100%; background: rgba(15,15,15,0.95); padding: 10px 0; text-align: center; border-bottom: 2px solid #ffcc00; z-index: 10; display: none; }
-        #gameActive { color: #ccc; font-size: 13px; font-weight: bold; }
-        
+        #gameActive { color: #ccc; font-size: 13px; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 15px;}
+        .exit-btn { background: #e74c3c; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; transition: 0.2s;}
+
         #mainContainer { display: none; gap: 20px; align-items: flex-start; justify-content: center; margin-top: 15px; width: 95%; max-width: 1140px; }
         .canvas-wrapper { position: relative; width: 100%; max-width: 900px; }
         canvas#gameCanvas { width: 100%; height: auto; aspect-ratio: 900 / 550; border: 2px solid #333; cursor: crosshair; box-shadow: 0 10px 30px rgba(0,0,0,0.8); background: #111; border-radius: 8px; }
@@ -52,6 +45,10 @@
         #hud { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; overflow: hidden; border-radius: 8px; }
         #killfeed { position: absolute; top: 10px; right: 10px; display: flex; flex-direction: column; align-items: flex-end; }
         .kf-item { background: rgba(20,20,20,0.8); padding: 4px 8px; margin-bottom: 4px; font-size: 11px; border-radius: 3px; border-left: 2px solid #ff4444; }
+        
+        /* Contadores en pantalla */
+        #topHUD { position: absolute; top: 10px; left: 10px; display: flex; gap: 10px; }
+        .hud-box { background: rgba(20,20,20,0.9); border: 1px solid #ffcc00; padding: 5px 10px; border-radius: 4px; font-weight: bold; font-size: 14px; color: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.8); }
 
         #sidePanel { background: rgba(15,15,15,0.9); border: 2px solid #333; border-radius: 8px; padding: 12px; width: 220px; height: 100%; min-height: 400px; display: flex; flex-direction: column; box-sizing: border-box; }
         #sidePanel h3 { margin: 0 0 10px 0; color: #ffcc00; font-size: 13px; text-align: center; border-bottom: 1px solid #444; padding-bottom: 8px; }
@@ -65,33 +62,35 @@
         #chatMessages { flex-grow: 1; overflow-y: auto; padding: 5px; font-size: 11px; display: flex; flex-direction: column; gap: 3px; word-wrap: break-word; }
         .chat-msg { background: rgba(255,255,255,0.1); padding: 4px; border-radius: 3px; }
         #chatInput { width: 100%; border: none; border-top: 1px solid #444; background: rgba(20,20,20,0.9); color: white; padding: 8px; box-sizing: border-box; font-size: 11px; outline: none; border-radius: 0 0 4px 4px; }
-        #chatInput:focus { background: #000; border-top-color: #ffcc00; }
 
-        #hostToggleBtn { position: fixed; bottom: 20px; right: 20px; width: 45px; height: 45px; border-radius: 50%; background: #ffcc00; color: #000; font-size: 22px; border: none; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.5); z-index: 60; display: none; padding: 0; line-height: 45px; text-align: center; }
+        /* Tienda Modal */
+        #shopModal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(15,15,15,0.98); border: 2px solid #3498db; border-radius: 8px; padding: 20px; width: 320px; z-index: 150; display: none; box-shadow: 0 0 30px rgba(0,0,0,0.9); }
+        #shopModal h2 { margin: 0 0 10px 0; color: #3498db; text-align: center; border-bottom: 1px solid #444; padding-bottom: 5px; font-size: 18px; }
+        .shop-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; }
+        .shop-btn { background: #222; border: 1px solid #555; border-radius: 6px; padding: 12px 5px; color: #fff; cursor: pointer; transition: 0.2s; font-weight: bold; font-size: 12px; }
+        .shop-btn:hover { background: #333; border-color: #3498db; }
+        .shop-btn.disabled { opacity: 0.5; cursor: not-allowed; border-color: #444 !important; }
+
+        #hostToggleBtn { position: fixed; bottom: 20px; right: 20px; width: 45px; height: 45px; border-radius: 50%; background: #ffcc00; color: #000; font-size: 22px; border: none; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.5); z-index: 60; display: none; }
         #hostSettings { position: fixed; bottom: 75px; right: 20px; background: rgba(0,0,0,0.95); padding: 15px; border-radius: 8px; border: 1px solid #ffcc00; width: 200px; font-size: 11px; display: none; z-index: 55; box-shadow: 0 5px 15px rgba(0,0,0,0.7); }
         #hostSettings label { display: block; margin-top: 8px; color: #aaa; font-weight: bold; }
         #hostSettings select { width: 100%; margin-top: 4px; padding: 4px; background:#222; color:#fff; border:1px solid #555; }
-        #hostSettings button { padding: 8px; background: #ffcc00; color: #000; border: none; border-radius: 4px; font-weight: bold; width: 100%; margin-top: 10px; cursor: pointer; }
+        #hostSettings button { padding: 8px; background: #ffcc00; color: #000; border: none; width: 100%; margin-top: 10px; cursor: pointer; font-weight:bold; }
 
-        #hofModal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(15,15,15,0.95); border: 2px solid #ffcc00; border-radius: 8px; padding: 20px; width: 300px; z-index: 200; display: none; box-shadow: 0 0 30px rgba(0,0,0,0.8); }
-        #hofModal h2 { color: #ffcc00; margin: 0 0 15px 0; text-align: center; font-size: 16px; border-bottom: 1px solid #444; padding-bottom: 10px; }
+        #hofModal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(15,15,15,0.95); border: 2px solid #ffcc00; border-radius: 8px; padding: 20px; width: 300px; z-index: 200; display: none; }
         .hof-row { display: flex; justify-content: space-between; padding: 6px; border-bottom: 1px solid #333; font-size: 13px; }
-        .hof-row:nth-child(1) { color: #ffea00; font-weight: bold; font-size: 15px; }
-        .hof-row:nth-child(2) { color: #silver; font-weight: bold; }
-        .hof-row:nth-child(3) { color: #cd7f32; font-weight: bold; }
         .close-btn { background: #ff4444; color:#fff; width: 100%; margin-top: 15px; padding: 8px; border:none; border-radius:4px; font-weight:bold; cursor:pointer;}
 
-        #msgOverlay { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(255,0,0,0.9); color: white; padding: 15px 25px; border-radius: 5px; font-weight: bold; display: none; z-index: 250; text-align: center; box-shadow: 0 0 20px rgba(255,0,0,0.5); }
+        #msgOverlay { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(255,0,0,0.9); color: white; padding: 15px 25px; border-radius: 5px; font-weight: bold; display: none; z-index: 250; text-align: center; }
         
         #mobileControls { position: fixed; bottom: 15px; left: 0; width: 100%; height: 110px; display: none; justify-content: space-between; padding: 0 20px; box-sizing: border-box; z-index: 50; pointer-events: none; }
         .joystick-zone { width: 100px; height: 100px; background: rgba(255,255,255,0.1); border-radius: 50%; position: relative; pointer-events: auto; }
         .joystick-knob { width: 36px; height: 36px; background: rgba(255,204,0,0.7); border-radius: 50%; position: absolute; top: 32px; left: 32px; pointer-events: none; }
-        #mobileReactions { position: fixed; bottom: 130px; left: 50%; transform: translateX(-50%); display: none; flex-direction: row; gap: 15px; z-index: 50; }
-        .react-btn { background: rgba(0,0,0,0.6); border: 1px solid #ffcc00; border-radius: 50%; width: 36px; height: 36px; font-size: 16px; display: flex; align-items: center; justify-content: center; color: white; cursor: pointer;}
+        #mobileReactions { position: fixed; bottom: 130px; left: 50%; transform: translateX(-50%); display: none; flex-direction: row; gap: 10px; z-index: 50; }
+        .react-btn { background: rgba(0,0,0,0.6); border: 1px solid #ffcc00; border-radius: 50%; width: 36px; height: 36px; font-size: 16px; display: flex; align-items: center; justify-content: center; color: white; cursor: pointer; pointer-events: auto;}
 
         .hidden { display: none !important; }
         
-        /* Responsive */
         @media (max-width: 900px) { 
             .color-grid { grid-template-columns: repeat(5, 1fr); }
             #mainContainer { flex-direction: column; align-items: center; margin-top: 5px; gap: 10px; } 
@@ -99,7 +98,6 @@
             #sidePanel { width: 95%; height: auto; min-height: unset; max-height: 200px; flex-direction: row; gap: 10px; padding: 8px; } 
             #scoreList { width: 50%; margin: 0; } 
             #chatBox { width: 50%; height: 100%; display: flex; } 
-            #sidePanel h3 { display: none; } 
         }
     </style>
 </head>
@@ -108,19 +106,10 @@
     <div id="lobbyOverlay">
         <div class="lobby-card">
             <h1 class="lobby-title">Office Chaos</h1>
-            
+            <div class="setup-section"><label>Tu Nombre</label><input type="text" id="userName" class="input-text" placeholder="Ej: Lucas" maxlength="10"></div>
+            <div class="setup-section"><label>Color de Personaje</label><div class="color-grid" id="colorGrid"></div></div>
             <div class="setup-section">
-                <label>Tu Nombre</label>
-                <input type="text" id="userName" class="input-text" placeholder="Ej: Lucas" maxlength="10">
-            </div>
-
-            <div class="setup-section">
-                <label>Color de Personaje</label>
-                <div class="color-grid" id="colorGrid"></div>
-            </div>
-
-            <div class="setup-section">
-                <label>Elige tu Arma (Clase)</label>
+                <label>Elige tu Arma Base</label>
                 <div class="weapon-grid">
                     <div class="weapon-btn selected" onclick="selectWeapon('pistol', this)">Pistola<br><span style="font-size:10px; font-weight:normal;">Rápida | 25 Dmg</span></div>
                     <div class="weapon-btn" onclick="selectWeapon('shotgun', this)">Escopeta<br><span style="font-size:10px; font-weight:normal;">3 Balas | 25x3 Dmg</span></div>
@@ -128,31 +117,33 @@
                     <div class="weapon-btn" onclick="selectWeapon('mg', this)">Metralleta<br><span style="font-size:10px; font-weight:normal;">Ráfaga | 8 Dmg</span></div>
                 </div>
             </div>
-
             <div class="preview-container">
-                <div style="flex:1;">
-                    <label style="font-size:12px; color:#aaa; font-weight:bold;">PREVIEW:</label>
-                    <p style="font-size:11px; color:#777; margin:5px 0;">Así te verán tus compañeros en la oficina.</p>
-                </div>
+                <div style="flex:1;"><label style="font-size:12px; color:#aaa; font-weight:bold;">PREVIEW:</label></div>
                 <canvas id="previewCanvas" width="80" height="80"></canvas>
             </div>
-
-            <div class="setup-section">
-                <label>ID de la Sala</label>
-                <input type="text" id="customId" class="input-text" placeholder="Ej: B2B" maxlength="8" style="text-transform: uppercase;">
-            </div>
-
-            <div class="lobby-actions">
-                <button class="btn-main" onclick="startLogin()">Entrar al Combate</button>
-                <button class="btn-alt" onclick="showHallOfFame()">Ver Histórico</button>
-            </div>
+            <div class="setup-section"><label>ID de la Sala</label><input type="text" id="customId" class="input-text" placeholder="Ej: B2B" maxlength="8" style="text-transform: uppercase;"></div>
+            <div class="lobby-actions"><button class="btn-main" onclick="startLogin()">Entrar</button><button class="btn-alt" onclick="showHallOfFame()">Histórico</button></div>
         </div>
     </div>
 
     <div id="ui">
         <div id="gameActive">
-            🔴 SALA: <b id="displayId" style="color: #ffcc00;">-</b> &nbsp;|&nbsp; 🗺️ <span id="mapName">-</span> &nbsp;|&nbsp; ⌨️ 'P' para Chat
+            🔴 SALA: <b id="displayId" style="color: #ffcc00;">-</b> &nbsp;|&nbsp; 🛒 'B' Tienda &nbsp;|&nbsp; ⌨️ 'P' Chat
+            <button class="exit-btn" onclick="exitGame()">🚪 SALIR</button>
         </div>
+    </div>
+
+    <div id="shopModal">
+        <h2>🛒 DISTRI-SHOP</h2>
+        <p style="text-align:center; margin:0; color:#aaa;">Tienes: <strong id="shopCoinDisplay" style="color:#ffcc00; font-size:16px;">0</strong> Coins</p>
+        <div class="shop-grid">
+            <button class="shop-btn" onclick="buyItem('shotgun', 40)">🔫 Escopeta (40)</button>
+            <button class="shop-btn" onclick="buyItem('sniper', 40)">🎯 Sniper (40)</button>
+            <button class="shop-btn" onclick="buyItem('mg', 40)">🧨 Metralleta (40)</button>
+            <button class="shop-btn" onclick="buyItem('shield', 20)">🛡️ Escudo (20)</button>
+            <button class="shop-btn" onclick="buyItem('heal', 20)" style="grid-column: span 2;">💊 Curar Vida (20)</button>
+        </div>
+        <button class="close-btn" onclick="toggleShop()">CERRAR</button>
     </div>
 
     <div id="msgOverlay">Conectando...</div>
@@ -167,30 +158,32 @@
         <button onclick="applySettings()">APLICAR Y REINICIAR</button>
     </div>
 
-    <div id="hofModal">
-        <h2>📊 REPORTE DE VENTAS (KILLS)</h2>
-        <div id="hofContent">Cargando datos...</div>
-        <button class="close-btn" onclick="document.getElementById('hofModal').style.display='none'">CERRAR</button>
-    </div>
+    <div id="hofModal"><h2 style="color:#ffcc00;">📊 REPORTE (KILLS)</h2><div id="hofContent">Cargando...</div><button class="close-btn" onclick="document.getElementById('hofModal').style.display='none'">CERRAR</button></div>
 
     <div id="mainContainer">
-        <div class="canvas-wrapper"><canvas id="gameCanvas"></canvas><div id="hud"><div id="killfeed"></div></div></div>
+        <div class="canvas-wrapper">
+            <canvas id="gameCanvas"></canvas>
+            <div id="hud">
+                <div id="topHUD"><div class="hud-box" id="inGameCoins">💰 0 Coins</div></div>
+                <div id="killfeed"></div>
+            </div>
+        </div>
         <div id="sidePanel">
             <h3 id="lbTitle">🏆 RANKING</h3>
             <div id="scoreList"></div>
-            <div id="chatBox">
-                <div id="chatMessages"></div>
-                <input type="text" id="chatInput" placeholder="Escribir (Tecla P)..." maxlength="40">
-            </div>
+            <div id="chatBox"><div id="chatMessages"></div><input type="text" id="chatInput" placeholder="Escribir (Tecla P)..." maxlength="40"></div>
         </div>
     </div>
 
     <div id="mobileControls"><div class="joystick-zone" id="joyLeft"><div class="joystick-knob" id="knobLeft"></div></div><div class="joystick-zone" id="joyRight"><div class="joystick-knob" id="knobRight"></div></div></div>
-    <div id="mobileReactions"><button class="react-btn" onclick="sendReaction('🤬')">🤬</button><button class="react-btn" onclick="sendReaction('😂')">😂</button><button class="react-btn" onclick="sendReaction('💀')">💀</button><button class="react-btn" onclick="sendReaction('🏳️')">🏳️</button></div>
+    <div id="mobileReactions">
+        <button class="react-btn" onclick="sendReaction('🤬')">🤬</button><button class="react-btn" onclick="sendReaction('😂')">😂</button>
+        <button class="react-btn" onclick="sendReaction('💀')">💀</button><button class="react-btn" style="background:#3498db; border-color:#fff;" onclick="toggleShop()">🛒</button>
+    </div>
 
     <script>
         // ==========================================
-        // 1. CONFIGURACIÓN DE FIREBASE
+        // 1. CONFIGURACIÓN DE FIREBASE (YA INYECTADA)
         // ==========================================
         const firebaseConfig = {
             apiKey: "AIzaSyDxMYI0Q0ICvf7XM-VxMIs08wqaOTSOxBY",
@@ -204,7 +197,7 @@
         firebase.initializeApp(firebaseConfig); const db = firebase.database();
 
         // ==========================================
-        // 2. SISTEMA DE LOBBY Y PREVIEW
+        // 2. LOBBY Y PREVIEW
         // ==========================================
         const palette = ["#ff4757", "#ff7f50", "#ffa502", "#eccc68", "#2ed573", "#7bed9f", "#1e90ff", "#70a1ff", "#5352ed", "#3742fa", "#9b59b6", "#8e44ad", "#ff6b81", "#ff4d4d", "#c56cf0", "#ffb8b8", "#32ff7e", "#18dcff", "#00d8d6", "#f1f2f6"];
         let myColor = palette[0], myWeapon = 'pistol';
@@ -216,9 +209,7 @@
             cGrid.appendChild(btn);
         });
 
-        function selectWeapon(w, el) {
-            document.querySelectorAll('.weapon-btn').forEach(b=>b.classList.remove('selected')); el.classList.add('selected'); myWeapon = w; drawPreview();
-        }
+        function selectWeapon(w, el) { document.querySelectorAll('.weapon-btn').forEach(b=>b.classList.remove('selected')); el.classList.add('selected'); myWeapon = w; drawPreview(); }
 
         const pCanvas = document.getElementById('previewCanvas'); const pCtx = pCanvas.getContext('2d');
         function drawPreview() {
@@ -228,18 +219,18 @@
             if(myWeapon === 'sniper') pCtx.fillRect(14, -3, 20, 6);
             else if(myWeapon === 'shotgun') { pCtx.fillRect(14, -6, 12, 4); pCtx.fillRect(14, 2, 12, 4); }
             else if(myWeapon === 'mg') { pCtx.fillRect(14, -4, 15, 8); pCtx.fillStyle="#555"; pCtx.fillRect(18, -6, 6, 12); }
-            else pCtx.fillRect(14, -3, 8, 6); // Pistol
+            else pCtx.fillRect(14, -3, 8, 6); 
             pCtx.restore();
         }
         drawPreview();
 
         // ==========================================
-        // 3. VARIABLES GLOBALES DE JUEGO
+        // 3. GLOBALES DE JUEGO
         // ==========================================
         const canvas = document.getElementById('gameCanvas'); const ctx = canvas.getContext('2d'); canvas.width = 900; canvas.height = 550;
         const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
         
-        let isSuperAdmin = false; // Rulo Status
+        let isSuperAdmin = false, hostInterval, renderReq;
         function toggleHostPanel() { const p = document.getElementById('hostSettings'); p.style.display = p.style.display === 'block' ? 'none' : 'block'; }
 
         const bgOfficeImg = new Image(); bgOfficeImg.src = 'https://i.imgur.com/jjGq36r.jpeg';
@@ -255,14 +246,9 @@
         let localPlayers = {}, bullets = [], boosters = [], particles = [], killfeedData = [], zoneSize = 0;
         let lastShot = 0, mouseX = 450, mouseY = 275, isShooting = false;
         let config = { mapIdx: 1, mode: 'ffa', zoneSpeed: 0.08, moveSpeed: 5, bossId: null };
+        const ZOOM = 1.6; // Zoom de Cámara
 
-        // STATS ARMAS
-        const wpStats = {
-            'pistol': { cd: 400, dmg: 25, spd: 15, size: 4 },
-            'shotgun': { cd: 1200, dmg: 25, spd: 12, size: 3 },
-            'sniper': { cd: 2000, dmg: 100, spd: 25, size: 6, pen: true },
-            'mg': { cd: 120, dmg: 8, spd: 18, size: 3 }
-        };
+        const wpStats = { 'pistol': { cd: 400, dmg: 25, spd: 15, size: 4 }, 'shotgun': { cd: 1200, dmg: 25, spd: 12, size: 3 }, 'sniper': { cd: 2000, dmg: 100, spd: 25, size: 6, pen: true }, 'mg': { cd: 120, dmg: 8, spd: 18, size: 3 } };
         let mgHeat = 0, mgOverheated = false;
 
         function showMsg(txt, duration = 3000) { const m = document.getElementById('msgOverlay'); m.innerHTML = txt; m.style.display = 'block'; if(duration) setTimeout(() => m.style.display = 'none', duration); }
@@ -280,41 +266,74 @@
         }
 
         // ==========================================
-        // 4. LOGIN Y CONEXIÓN
+        // 4. TIENDA DE MONEDAS
+        // ==========================================
+        function toggleShop() {
+            let m = document.getElementById('shopModal'); 
+            if(m.style.display === 'block') { m.style.display = 'none'; return; }
+            m.style.display = 'block';
+            let myCoins = (localPlayers[myId] && localPlayers[myId].coins) || 0;
+            document.getElementById('shopCoinDisplay').innerText = myCoins;
+            document.querySelectorAll('.shop-btn').forEach(b => {
+                let cost = parseInt(b.innerText.match(/\((\d+)\)/)[1]);
+                if(myCoins < cost) b.classList.add('disabled'); else b.classList.remove('disabled');
+            });
+        }
+
+        function buyItem(type, cost) {
+            let me = localPlayers[myId]; if(!me || me.dead || me.coins < cost) return;
+            roomRef.child('players/'+myId+'/coins').set(me.coins - cost);
+            if(type === 'shield') roomRef.child('players/'+myId+'/shield').set(true);
+            else if(type === 'heal') roomRef.child('players/'+myId+'/hp').set(me.maxHp);
+            else roomRef.child('players/'+myId).update({weapon: type, weaponExp: Date.now() + 3600000}); // Dura 1 hora (hasta morir)
+            toggleShop();
+        }
+
+        // ==========================================
+        // 5. CONEXIÓN Y SALIDA
         // ==========================================
         function startLogin() {
             roomId = document.getElementById('customId').value.toUpperCase();
             const name = document.getElementById('userName').value.trim() || "User";
             if(!roomId) return showMsg("Por favor, ingresa un ID de Sala");
             
-            // RULO SUPER ADMIN
             if(name.toLowerCase() === 'rulo') { isSuperAdmin = true; document.getElementById('hostToggleBtn').style.display = 'block'; }
+            showMsg("Conectando...", 0); roomRef = db.ref('rooms/' + roomId);
 
-            showMsg("Conectando a la Oficina...", 0); roomRef = db.ref('rooms/' + roomId);
-
-            // Chequeo de Baneo
             roomRef.child('banned/' + myId).once('value', snap => {
                 if(snap.exists()) { showMsg("Rulo te ha expulsado de esta sala.", 4000); return; }
-                proceedConnection(name);
+                roomRef.once('value', (s) => {
+                    let roomData = s.val();
+                    if (roomData && roomData.players && Object.keys(roomData.players).length > 0) {
+                        isHost = false; config = roomData.config || config; setupListeners(name);
+                    } else {
+                        isHost = true; roomRef.set({ config: config }); 
+                        if(!isSuperAdmin) document.getElementById('hostToggleBtn').style.display = 'block';
+                        setupListeners(name);
+                    }
+                });
             });
         }
 
-        function proceedConnection(name) {
-            roomRef.child('config').once('value', (snap) => {
-                if (snap.exists()) { isHost = false; config = snap.val(); setupListeners(name); } 
-                else { isHost = true; roomRef.child('config').set(config); document.getElementById('hostToggleBtn').style.display = 'block'; setupListeners(name); }
-            });
+        function exitGame() {
+            if(roomRef) {
+                roomRef.child('players/' + myId).remove();
+                roomRef.child('players').off(); roomRef.child('state').off(); roomRef.child('chat').off(); roomRef.child('config').off(); roomRef.child('banned/' + myId).off();
+                if(hostInterval) clearInterval(hostInterval); if(renderReq) cancelAnimationFrame(renderReq);
+            }
+            document.getElementById('ui').style.display = 'none'; document.getElementById('mainContainer').style.display = 'none'; document.getElementById('shopModal').style.display = 'none';
+            document.getElementById('lobbyOverlay').style.display = 'flex';
+            if(isMobile) { document.getElementById('mobileControls').style.display = 'none'; document.getElementById('mobileReactions').style.display = 'none'; }
+            isHost = false; isSuperAdmin = false; localPlayers = {}; roomRef = null;
         }
 
         function setupListeners(name) {
-            document.getElementById('lobbyOverlay').style.display = 'none';
-            document.getElementById('msgOverlay').style.display = 'none'; 
-            document.getElementById('ui').style.display = 'block'; document.getElementById('mainContainer').style.display = 'flex';
-            document.getElementById('displayId').innerText = roomId;
+            document.getElementById('lobbyOverlay').style.display = 'none'; document.getElementById('msgOverlay').style.display = 'none'; 
+            document.getElementById('ui').style.display = 'block'; document.getElementById('mainContainer').style.display = 'flex'; document.getElementById('displayId').innerText = roomId;
             if(isMobile) { document.getElementById('mobileControls').style.display = 'flex'; document.getElementById('mobileReactions').style.display = 'flex'; }
 
             let s = getSafeSpawn();
-            let myData = { name, color: myColor, baseWeapon: myWeapon, weapon: myWeapon, weaponExp: 0, x:s.x, y:s.y, targetX:s.x, targetY:s.y, score:0, dead:false, shield:false, speedBoost:0, radius:12, react:null, shootAngle: null, hp: 100, maxHp: 100, isBoss: false };
+            let myData = { name, color: myColor, baseWeapon: myWeapon, weapon: myWeapon, weaponExp: 0, coins: 0, x:s.x, y:s.y, targetX:s.x, targetY:s.y, score:0, dead:false, shield:false, speedBoost:0, radius:12, react:null, shootAngle: null, hp: 100, maxHp: 100, isBoss: false };
             roomRef.child('players/' + myId).set(myData); roomRef.child('players/' + myId).onDisconnect().remove();
 
             roomRef.child('players').on('value', snap => {
@@ -327,15 +346,16 @@
                             let tempX = localPlayers[id].x; let tempY = localPlayers[id].y;
                             Object.assign(localPlayers[id], sp);
                             localPlayers[id].dbX = sp.x; localPlayers[id].dbY = sp.y;
-                            localPlayers[id].x = tempX; localPlayers[id].y = tempY; // Interpolación
+                            localPlayers[id].x = tempX; localPlayers[id].y = tempY; 
                         }
                     }
                     for(let id in localPlayers) { if(!serverPlayers[id]) delete localPlayers[id]; }
                     updateLeaderboard(); 
+                    if(localPlayers[myId]) document.getElementById('inGameCoins').innerText = `💰 ${localPlayers[myId].coins} Coins`;
                 } else { localPlayers = {}; }
             });
 
-            roomRef.child('banned/' + myId).on('value', snap => { if(snap.exists()) { window.location.reload(); } });
+            roomRef.child('banned/' + myId).on('value', snap => { if(snap.exists()) { exitGame(); alert("Fuiste expulsado por el Administrador."); } });
 
             if(!isHost && !isSuperAdmin) {
                 roomRef.child('state').on('value', snap => {
@@ -347,8 +367,7 @@
                 roomRef.child('config').on('value', snap => { if(snap.exists()) { config = snap.val(); updateLeaderboard(); }});
             }
             roomRef.child('chat').on('child_added', snap => { let msg = snap.val(); renderChat(msg.sender, msg.color, msg.text); });
-            gameLoop(); 
-            if(isHost || isSuperAdmin) { setInterval(hostSyncLoop, 40); }
+            gameLoop(); if(isHost || isSuperAdmin) { if(hostInterval) clearInterval(hostInterval); hostInterval = setInterval(hostSyncLoop, 40); }
         }
 
         function applySettings() {
@@ -362,22 +381,15 @@
         function kickPlayer(id) { if(isSuperAdmin || isHost) { roomRef.child('banned/' + id).set(true); roomRef.child('players/' + id).remove(); } }
 
         // ==========================================
-        // 5. LÓGICAS GLOBALES Y CHAT
+        // 6. LÓGICAS GLOBALES Y CONTROLES
         // ==========================================
-        function getSafeSpawn() { 
-            let x, y, isSafe = false, att = 0; 
-            while(!isSafe && att < 200) { x = Math.random()*(canvas.width - 100) + 50; y = Math.random()*(canvas.height - 100) + 50; isSafe = !checkCollision(x, y, 30); att++; } 
-            return {x, y}; 
-        }
+        function getSafeSpawn() { let x, y, isSafe = false, att = 0; while(!isSafe && att < 200) { x = Math.random()*(canvas.width - 100) + 50; y = Math.random()*(canvas.height - 100) + 50; isSafe = !checkCollision(x, y, 30); att++; } return {x, y}; }
 
         function resetPlayer(id) { 
             let p = localPlayers[id]; if(!p) return;
             let s = getSafeSpawn(); let isBoss = (config.mode === 'juggernaut' && config.bossId === id);
             let pData = { dead: false, shield: false, speedBoost: 0, weapon: isBoss ? 'boss' : p.baseWeapon, x: s.x, y: s.y, targetX: s.x, targetY: s.y, hp: isBoss ? 500 : 100, maxHp: isBoss ? 500 : 100, radius: isBoss ? 22 : 12, isBoss: isBoss };
-            
-            // Forzar actualización total para matar bugs de paredes
-            if(id === myId) { p.x = s.x; p.y = s.y; p.dbX = s.x; p.dbY = s.y; roomRef.child('players/' + myId).update(pData); } 
-            else if (isHost || isSuperAdmin) roomRef.child('players/' + id).update(pData);
+            if(id === myId) { p.x = s.x; p.y = s.y; p.dbX = s.x; p.dbY = s.y; roomRef.child('players/' + myId).update(pData); } else if (isHost || isSuperAdmin) roomRef.child('players/' + id).update(pData);
         }
 
         function sendReaction(emoji) { roomRef.child('players/' + myId).update({ react: { emoji, exp: Date.now() + 2500 } }); }
@@ -387,23 +399,19 @@
         window.addEventListener('keydown', e => { 
             const chatInput = document.getElementById('chatInput');
             if(document.activeElement === chatInput) { if(e.key === 'Enter') sendChat(); return; } 
-            if(e.key.toLowerCase() === 'p' && document.activeElement !== chatInput && document.getElementById('mainContainer').style.display === 'flex') { e.preventDefault(); chatInput.focus(); return; }
+            if(e.key.toLowerCase() === 'p' && document.getElementById('mainContainer').style.display === 'flex') { e.preventDefault(); chatInput.focus(); return; }
+            if(e.key.toLowerCase() === 'b' && document.getElementById('mainContainer').style.display === 'flex') { toggleShop(); return; }
             if(e.key === '1') sendReaction('🤬'); if(e.key === '2') sendReaction('😂'); if(e.key === '3') sendReaction('💀'); if(e.key === '4') sendReaction('🏳️'); 
         });
 
-        if(!isMobile) { 
-            window.addEventListener('mousemove', e => { const r = canvas.getBoundingClientRect(); mouseX = (e.clientX - r.left) * (canvas.width / r.width); mouseY = (e.clientY - r.top) * (canvas.height / r.height); }); 
-            window.addEventListener('mousedown', () => isShooting = true); 
-            window.addEventListener('mouseup', () => isShooting = false);
-            window.addEventListener('mouseleave', () => isShooting = false);
-        }
+        if(!isMobile) { window.addEventListener('mousemove', e => { const r = canvas.getBoundingClientRect(); mouseX = (e.clientX - r.left) * (canvas.width / r.width); mouseY = (e.clientY - r.top) * (canvas.height / r.height); }); window.addEventListener('mousedown', () => isShooting = true); window.addEventListener('mouseup', () => isShooting = false); window.addEventListener('mouseleave', () => isShooting = false); }
 
         function setupJoystick(zoneId, knobId, isAim) {
             const zone = document.getElementById(zoneId); const knob = document.getElementById(knobId); let active = false, center = {x:0, y:0};
             zone.addEventListener('touchstart', e => { active = true; const r = zone.getBoundingClientRect(); center = {x: r.left + r.width/2, y: r.top + r.height/2}; handleMove(e.touches[0]); });
             zone.addEventListener('touchmove', e => { if(active) handleMove(e.touches[0]); });
             zone.addEventListener('touchend', () => { active = false; knob.style.transform = `translate(0px, 0px)`; if(isAim) isShooting = false; else if(localPlayers[myId]) { roomRef.child('players/'+myId).update({targetX: localPlayers[myId].x, targetY: localPlayers[myId].y}); }});
-            function handleMove(touch) { let dx = touch.clientX - center.x, dy = touch.clientY - center.y, dist = Math.hypot(dx, dy), maxDist = 30; if(dist > maxDist) { dx = (dx/dist)*maxDist; dy = (dy/dist)*maxDist; } knob.style.transform = `translate(${dx}px, ${dy}px)`; if(localPlayers[myId] && !localPlayers[myId].dead) { if(isAim) { mouseX = localPlayers[myId].x + dx * 8; mouseY = localPlayers[myId].y + dy * 8; isShooting = dist > 10; } else { roomRef.child('players/'+myId).update({targetX: localPlayers[myId].x + dx * 2.5, targetY: localPlayers[myId].y + dy * 2.5}); } } }
+            function handleMove(touch) { let dx = touch.clientX - center.x, dy = touch.clientY - center.y, dist = Math.hypot(dx, dy), maxDist = 30; if(dist > maxDist) { dx = (dx/dist)*maxDist; dy = (dy/dist)*maxDist; } knob.style.transform = `translate(${dx}px, ${dy}px)`; if(localPlayers[myId] && !localPlayers[myId].dead) { if(isAim) { mouseX = canvas.width/2 + dx * 8; mouseY = canvas.height/2 + dy * 8; isShooting = dist > 10; } else { roomRef.child('players/'+myId).update({targetX: localPlayers[myId].x + dx * 2.5, targetY: localPlayers[myId].y + dy * 2.5}); } } }
         }
         if(isMobile) { setupJoystick('joyLeft', 'knobLeft', false); setupJoystick('joyRight', 'knobRight', true); }
 
@@ -414,13 +422,12 @@
         function updateLeaderboard() {
             let html = ""; let title = config.mode === 'teams' ? "🏆 EQUIPOS (COLOR)" : (config.mode === 'juggernaut' ? "🧟 JEFE ZOMBI" : "🏆 TODOS VS TODOS");
             document.getElementById('lbTitle').innerText = title;
-            
             if(config.mode === 'teams') {
                 let teams = {}; Object.values(localPlayers).forEach(p => { if(!teams[p.color]) teams[p.color]=0; teams[p.color] += p.score; });
                 Object.keys(teams).sort((a,b) => teams[b] - teams[a]).forEach(c => {
                     html += `<div class="team-score" style="color:${c}; border-left:3px solid ${c};"><span>Equipo</span><span>${teams[c]} pts</span></div>`;
                     Object.entries(localPlayers).filter(([id,p]) => p.color === c).sort((a,b) => b[1].score - a[1].score).forEach(([id,p]) => { 
-                        let kick = isSuperAdmin && id !== myId ? `<button class="kick-btn" onclick="kickPlayer('${id}')">X</button>` : '';
+                        let kick = isSuperAdmin && id !== myId ? `<button class="kick-btn" style="display:inline-block" onclick="kickPlayer('${id}')">X</button>` : '';
                         html += `<div class="lb-row ${p.dead?'lb-dead':''}"><span style="overflow:hidden; text-overflow:ellipsis;">${p.name}</span><div>${p.score}${kick}</div></div>`; 
                     });
                 });
@@ -435,23 +442,21 @@
         }
 
         // ==========================================
-        // 6. MOTOR HOST / ADMIN (Sincronización Física)
+        // 7. MOTOR HOST (Físicas y Coins)
         // ==========================================
         function hostSyncLoop() {
             if((!isHost && !isSuperAdmin) || !localPlayers) return;
             let currentExplosions = null, killData = null; zoneSize += config.zoneSpeed;
 
-            if(Math.random() < 0.05 && boosters.length < 6) { let bx = Math.random()*(canvas.width-100)+50, by = Math.random()*(canvas.height-100)+50; if(!checkCollision(bx, by, 15)) boosters.push({x: bx, y: by, type: ['🛡️', '☕', '💊', '💊'][Math.floor(Math.random()*4)]}); }
+            if(Math.random() < 0.05 && boosters.length < 6) { let bx = Math.random()*(canvas.width-100)+50, by = Math.random()*(canvas.height-100)+50; if(!checkCollision(bx, by, 15)) boosters.push({x: bx, y: by, type: ['🛡️', '☕'][Math.floor(Math.random()*2)]}); }
 
             for(let id in localPlayers) {
                 let p = localPlayers[id];
                 if(p.shootAngle !== null && p.shootAngle !== undefined && !p.dead) {
                     let a = p.shootAngle; let stats = wpStats[p.weapon] || wpStats['pistol'];
-                    
                     if(p.weapon === 'shotgun') { [-0.2, 0, 0.2].forEach(off => bullets.push({x: p.x, y: p.y, angle: a + off, owner: id, color: p.color, speed: stats.spd, size: stats.size, damage: stats.dmg})); } 
                     else if (p.weapon === 'boss') { bullets.push({x: p.x, y: p.y, angle: a, owner: id, color: "#ff4444", speed: 10, size: 8, damage: 60, penetrate: true}); } 
                     else { bullets.push({x: p.x, y: p.y, angle: a, owner: id, color: p.color, speed: stats.spd, size: stats.size, damage: stats.dmg, penetrate: stats.pen||false}); }
-                    
                     roomRef.child('players/'+id+'/shootAngle').remove(); p.shootAngle = null; 
                 }
             }
@@ -471,8 +476,9 @@
                         else { 
                             let newHp = p.hp - b.damage;
                             if(newHp <= 0) {
-                                roomRef.child('players/'+id).update({dead: true, hp: 0, x:0, y:0}); // Mover a 0,0 muerto para evitar bugs
+                                roomRef.child('players/'+id).update({dead: true, hp: 0, x:0, y:0}); 
                                 roomRef.child('players/'+b.owner+'/score').set((localPlayers[b.owner].score || 0) + 1); 
+                                roomRef.child('players/'+b.owner+'/coins').set((localPlayers[b.owner].coins || 0) + 5); // +5 COINS X KILL
                                 currentExplosions = createExplosion(p.x, p.y, p.color); killData = { killer: localPlayers[b.owner].name, victim: p.name, color: localPlayers[b.owner].color }; 
                                 db.ref('hallOfFame/'+localPlayers[b.owner].name).update({ kills: firebase.database.ServerValue.increment(1), color: localPlayers[b.owner].color });
                                 setTimeout(() => resetPlayer(id), 4000); 
@@ -500,7 +506,6 @@
                     if(Math.hypot(p.x - b.x, p.y - b.y) < p.radius + 15) { 
                         if(b.type === '🛡️') roomRef.child('players/'+id+'/shield').set(true); 
                         if(b.type === '☕') roomRef.child('players/'+id+'/speedBoost').set(Date.now() + 6000); 
-                        if(b.type === '💊') roomRef.child('players/'+id+'/hp').set(Math.min(p.maxHp, p.hp + 50));
                         boosters.splice(bi, 1); 
                     }
                 }
@@ -509,73 +514,92 @@
         }
 
         // ==========================================
-        // 7. RENDER LOOP Y DIBUJOS (60FPS)
+        // 8. RENDER LOOP (Cámara, Niebla y Minimapa)
         // ==========================================
         function drawPlayerWeapon(pCtx, w, rad) {
             pCtx.fillStyle = "#fff";
-            if(w === 'sniper') pCtx.fillRect(rad-2, -3, 20, 6);
-            else if(w === 'shotgun') { pCtx.fillRect(rad-2, -6, 12, 4); pCtx.fillRect(rad-2, 2, 12, 4); }
-            else if(w === 'mg') { pCtx.fillRect(rad-2, -4, 15, 8); pCtx.fillStyle="#555"; pCtx.fillRect(rad+2, -6, 6, 12); }
-            else if(w === 'boss') { pCtx.fillRect(rad-4, -8, 12, 16); }
-            else pCtx.fillRect(rad-2, -3, 8, 6); // Pistol default
+            if(w === 'sniper') pCtx.fillRect(rad-2, -3, 20, 6); else if(w === 'shotgun') { pCtx.fillRect(rad-2, -6, 12, 4); pCtx.fillRect(rad-2, 2, 12, 4); } else if(w === 'mg') { pCtx.fillRect(rad-2, -4, 15, 8); pCtx.fillStyle="#555"; pCtx.fillRect(rad+2, -6, 6, 12); } else if(w === 'boss') { pCtx.fillRect(rad-4, -8, 12, 16); } else pCtx.fillRect(rad-2, -3, 8, 6);
         }
 
         function gameLoop() {
-            if(document.getElementById('lobbyOverlay').style.display !== 'none') { requestAnimationFrame(gameLoop); return; }
+            if(document.getElementById('lobbyOverlay').style.display !== 'none' || !roomRef) { renderReq = requestAnimationFrame(gameLoop); return; }
             
+            let me = localPlayers[myId];
+            let camX = 0, camY = 0;
+            if(me && !me.dead) { camX = canvas.width/2 - me.x * ZOOM; camY = canvas.height/2 - me.y * ZOOM; }
+
+            ctx.clearRect(0,0,canvas.width,canvas.height);
+            ctx.save();
+            ctx.translate(camX, camY); ctx.scale(ZOOM, ZOOM);
+
             let map = mapList[config.mapIdx]; document.getElementById('mapName').innerText = map.name;
             if (config.mapIdx === 1 && bgOfficeImg.complete) { ctx.drawImage(bgOfficeImg, 0, 0, canvas.width, canvas.height); } else { ctx.fillStyle = map.bg; ctx.fillRect(0,0,canvas.width,canvas.height); }
             map.hazards.forEach(h => { if(h.type === 'coffee') { ctx.fillStyle = "rgba(78, 52, 46, 0.6)"; ctx.beginPath(); ctx.arc(h.x, h.y, h.r, 0, Math.PI*2); ctx.fill(); } else if (h.type === 'belt') { ctx.fillStyle = "rgba(100, 100, 100, 0.4)"; ctx.fillRect(h.x, h.y, h.w, h.h); ctx.fillStyle = "rgba(255, 255, 255, 0.2)"; ctx.font="20px Arial"; ctx.fillText("⬇", h.x+10, h.y+h.h/2); } });
             if (config.mapIdx !== 1) { ctx.shadowBlur = 15; ctx.shadowColor = "rgba(0,0,0,0.8)"; ctx.fillStyle = map.wall; map.furniture.forEach(f => ctx.fillRect(f.x, f.y, f.w, f.h)); ctx.shadowBlur = 0; }
 
-            let me = localPlayers[myId];
-            if(me && !me.dead && roomRef) {
-                if(!isMobile) { roomRef.child('players/'+myId).update({targetX: mouseX, targetY: mouseY}); }
-                
-                // LÓGICA DE DISPARO Y RECALENTAMIENTO (MG)
+            if(me && !me.dead) {
+                let wMouseX = (mouseX - camX) / ZOOM; let wMouseY = (mouseY - camY) / ZOOM;
                 let wp = wpStats[me.weapon] || wpStats['pistol'];
                 if(isShooting && !mgOverheated && Date.now() - lastShot > wp.cd) { 
-                    lastShot = Date.now(); roomRef.child('players/'+myId+'/shootAngle').set(Math.atan2(mouseY - me.y, mouseX - me.x)); 
-                    if(me.weapon === 'mg') { 
-                        mgHeat += 10; 
-                        if(mgHeat >= 100) { mgOverheated = true; setTimeout(() => { mgHeat = 0; mgOverheated = false; }, 2000); }
-                    }
+                    lastShot = Date.now(); roomRef.child('players/'+myId+'/shootAngle').set(Math.atan2(wMouseY - me.y, wMouseX - me.x)); 
+                    if(me.weapon === 'mg') { mgHeat += 10; if(mgHeat >= 100) { mgOverheated = true; setTimeout(() => { mgHeat = 0; mgOverheated = false; }, 2000); } }
                 } else if (!isShooting && me.weapon === 'mg' && mgHeat > 0 && !mgOverheated) { mgHeat -= 1; }
             }
 
             const kf = document.getElementById('killfeed'); kf.innerHTML = ""; killfeedData = killfeedData.filter(k => k.expire > Date.now()); killfeedData.forEach(k => { let d = document.createElement('div'); d.className = 'kf-item'; d.innerHTML = k.text; kf.appendChild(d); });
 
             ctx.fillStyle = "rgba(255, 0, 0, 0.1)"; ctx.fillRect(0, 0, canvas.width, zoneSize); ctx.fillRect(0, canvas.height-zoneSize, canvas.width, zoneSize); ctx.fillRect(0, zoneSize, zoneSize, canvas.height-zoneSize*2); ctx.fillRect(canvas.width-zoneSize, zoneSize, zoneSize, canvas.height-zoneSize*2); ctx.strokeStyle = "#ff4444"; ctx.lineWidth = 2; ctx.strokeRect(zoneSize, zoneSize, canvas.width-zoneSize*2, canvas.height-zoneSize*2);
-            boosters.forEach(b => { ctx.shadowBlur = 15; ctx.shadowColor = b.type === '💊' ? '#ff4757' : '#fff'; ctx.fillStyle = "rgba(255, 255, 255, 0.9)"; ctx.beginPath(); ctx.arc(b.x, b.y, 14, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur = 0; ctx.fillStyle = "#000"; ctx.font = "16px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(b.type, b.x, b.y+1); });
+            boosters.forEach(b => { ctx.shadowBlur = 15; ctx.shadowColor = '#fff'; ctx.fillStyle = "rgba(255, 255, 255, 0.9)"; ctx.beginPath(); ctx.arc(b.x, b.y, 14, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur = 0; ctx.fillStyle = "#000"; ctx.font = "16px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(b.type, b.x, b.y+1); });
             bullets.forEach(b => { ctx.fillStyle = b.color; ctx.beginPath(); ctx.arc(b.x, b.y, b.size, 0, Math.PI*2); ctx.fill(); });
 
             for(let id in localPlayers) {
                 let p = localPlayers[id]; if(p.dead) continue;
                 if (p.dbX !== undefined && p.dbY !== undefined) { p.x += (p.dbX - p.x) * 0.3; p.y += (p.dbY - p.y) * 0.3; }
                 
-                let angle = isMobile && isShooting && id === myId ? Math.atan2(mouseY - p.y, mouseX - p.x) : Math.atan2(p.targetY - p.y, p.targetX - p.x);
+                let angle = 0;
+                if(id === myId) { let wMouseX = (mouseX - camX) / ZOOM; let wMouseY = (mouseY - camY) / ZOOM; angle = Math.atan2(wMouseY - p.y, wMouseX - p.x); }
+                else { angle = Math.atan2(p.targetY - p.y, p.targetX - p.x); }
+
                 ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(angle);
                 if(p.shield) { ctx.beginPath(); ctx.arc(0,0, p.radius+5, 0, Math.PI*2); ctx.strokeStyle = "#00f2ff"; ctx.lineWidth=3; ctx.stroke(); }
-                ctx.beginPath(); ctx.arc(0,0, p.radius, 0, Math.PI*2); ctx.fillStyle = p.isBoss ? '#8b0000' : p.color; ctx.fill();
-                ctx.strokeStyle = "#000"; ctx.lineWidth=2; ctx.stroke();
-                
+                ctx.beginPath(); ctx.arc(0,0, p.radius, 0, Math.PI*2); ctx.fillStyle = p.isBoss ? '#8b0000' : p.color; ctx.fill(); ctx.strokeStyle = "#000"; ctx.lineWidth=2; ctx.stroke();
                 drawPlayerWeapon(ctx, p.weapon, p.radius); ctx.restore();
                 
                 let hpPct = Math.max(0, p.hp / p.maxHp); ctx.fillStyle = "#ff4444"; ctx.fillRect(p.x - 15, p.y - p.radius - 12, 30, 4); ctx.fillStyle = "#2ecc71"; ctx.fillRect(p.x - 15, p.y - p.radius - 12, 30 * hpPct, 4);
-
                 ctx.fillStyle = "#fff"; ctx.font = "bold 11px Arial"; ctx.textAlign = "center"; ctx.fillText(`${p.name}`, p.x, p.y - p.radius - 16);
                 
-                if(id === myId && p.weapon === 'mg' && mgHeat > 0) {
-                    ctx.fillStyle = mgOverheated ? "#ff4444" : "#ffea00"; ctx.fillRect(p.x - 15, p.y + p.radius + 8, 30 * (mgHeat/100), 3);
-                    if(mgOverheated) { ctx.font = "9px Arial"; ctx.fillText("TRABADA", p.x, p.y + p.radius + 20); }
-                }
-
+                if(id === myId && p.weapon === 'mg' && mgHeat > 0) { ctx.fillStyle = mgOverheated ? "#ff4444" : "#ffea00"; ctx.fillRect(p.x - 15, p.y + p.radius + 8, 30 * (mgHeat/100), 3); if(mgOverheated) { ctx.font = "9px Arial"; ctx.fillText("TRABADA", p.x, p.y + p.radius + 20); } }
                 if(p.react && p.react.exp > Date.now()) { ctx.font = "24px Arial"; ctx.fillText(p.react.emoji, p.x, p.y - p.radius - 30); }
                 if(id === myId) { let wp = wpStats[p.weapon] || wpStats['pistol']; let cdRatio = Math.min(1, (Date.now() - lastShot) / wp.cd); if(cdRatio < 1 && !mgOverheated) { ctx.beginPath(); ctx.arc(p.x, p.y, p.radius+10, -Math.PI/2, (-Math.PI/2) + (Math.PI*2 * cdRatio)); ctx.strokeStyle = "rgba(255,255,255,0.7)"; ctx.lineWidth = 2; ctx.stroke(); } }
             }
 
             particles.forEach((p, i) => { p.x += p.vx; p.y += p.vy; p.life -= 0.03; ctx.fillStyle = p.color; ctx.globalAlpha = Math.max(0, p.life); ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, Math.PI*2); ctx.fill(); if(p.life <= 0) particles.splice(i, 1); });
-            ctx.globalAlpha = 1; ctx.textAlign = "left"; ctx.textBaseline = "alphabetic"; requestAnimationFrame(gameLoop);
+            ctx.globalAlpha = 1; 
+            
+            // NIEBLA DE GUERRA
+            if(me && !me.dead) {
+                let grd = ctx.createRadialGradient(me.x, me.y, 80, me.x, me.y, 300);
+                grd.addColorStop(0, 'rgba(0,0,0,0)'); grd.addColorStop(0.8, 'rgba(0,0,0,0.85)'); grd.addColorStop(1, 'rgba(0,0,0,1)');
+                ctx.fillStyle = grd; ctx.fillRect(me.x - 2000, me.y - 2000, 4000, 4000);
+            }
+            
+            ctx.restore(); // RESTAURAR CÁMARA AL HUD FIJO
+
+            // MINIMAPA (Se dibuja fijo arriba a la derecha, ignorando el zoom)
+            let mmW = 150, mmH = 150 * (canvas.height/canvas.width);
+            let mmX = canvas.width - mmW - 10, mmY = 10;
+            ctx.fillStyle = 'rgba(10,10,10,0.85)'; ctx.fillRect(mmX, mmY, mmW, mmH);
+            ctx.strokeStyle = '#ffcc00'; ctx.lineWidth = 2; ctx.strokeRect(mmX, mmY, mmW, mmH);
+            
+            for(let id in localPlayers) {
+                let p = localPlayers[id]; if(p.dead) continue;
+                let px = mmX + (p.x / canvas.width) * mmW; let py = mmY + (p.y / canvas.height) * mmH;
+                ctx.fillStyle = (id === myId) ? '#2ecc71' : (p.isBoss ? '#ff4444' : p.color);
+                ctx.beginPath(); ctx.arc(px, py, id === myId ? 3 : 2, 0, Math.PI*2); ctx.fill();
+            }
+
+            ctx.textAlign = "left"; ctx.textBaseline = "alphabetic"; 
+            renderReq = requestAnimationFrame(gameLoop);
         }
     </script>
 </body>
