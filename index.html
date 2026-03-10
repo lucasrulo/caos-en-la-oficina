@@ -182,7 +182,7 @@
 
     <script>
         // ==========================================
-        // 1. CONFIGURACIÓN DE FIREBASE
+        // 1. CONFIGURACIÓN DE FIREBASE E IMÁGENES
         // ==========================================
         const firebaseConfig = {
             apiKey: "AIzaSyDxMYI0Q0ICvf7XM-VxMIs08wqaOTSOxBY",
@@ -194,6 +194,13 @@
             appId: "1:301553196610:web:53ab5522faf64b255117db"
         };
         firebase.initializeApp(firebaseConfig); const db = firebase.database();
+
+        // IMÁGENES CARGADAS
+        const bgOfficeImg = new Image(); bgOfficeImg.src = 'https://i.imgur.com/jjGq36r.jpeg';
+        
+        // TUS MONEDAS 
+        const coinFront = new Image(); coinFront.src = 'https://i.imgur.com/uWaYS9e.jpeg'; 
+        const coinBack = new Image();  coinBack.src = 'https://i.imgur.com/12OIdW8.jpeg';   
 
         // ==========================================
         // 2. LOBBY Y PREVIEW
@@ -231,8 +238,6 @@
         
         let isSuperAdmin = false, hostInterval, renderReq;
         function toggleHostPanel() { const p = document.getElementById('hostSettings'); p.style.display = p.style.display === 'block' ? 'none' : 'block'; }
-
-        const bgOfficeImg = new Image(); bgOfficeImg.src = 'https://i.imgur.com/jjGq36r.jpeg';
 
         const mapList = [
             { name: "Arena Vacía", bg: "#1a1a1a", wall: "#444", furniture: [], hazards: [] },
@@ -447,13 +452,13 @@
         }
 
         // ==========================================
-        // 7. MOTOR HOST (Físicas y Coins)
+        // 7. MOTOR HOST (Físicas y Drop de Monedas)
         // ==========================================
         function hostSyncLoop() {
             if((!isHost && !isSuperAdmin) || !localPlayers) return;
             let currentExplosions = null, killData = null; zoneSize += config.zoneSpeed;
 
-            if(Math.random() < 0.05 && boosters.length < 6) { let bx = Math.random()*(canvas.width-100)+50, by = Math.random()*(canvas.height-100)+50; if(!checkCollision(bx, by, 15)) boosters.push({x: bx, y: by, type: ['🛡️', '☕'][Math.floor(Math.random()*2)]}); }
+            if(Math.random() < 0.05 && boosters.length < 6) { let bx = Math.random()*(canvas.width-100)+50, by = Math.random()*(canvas.height-100)+50; if(!checkCollision(bx, by, 15)) boosters.push({x: bx, y: by, type: ['🛡️', '☕', '💊'][Math.floor(Math.random()*3)]}); }
 
             for(let id in localPlayers) {
                 let p = localPlayers[id];
@@ -483,7 +488,9 @@
                             if(newHp <= 0) {
                                 roomRef.child('players/'+id).update({dead: true, hp: 0, x:0, y:0}); 
                                 roomRef.child('players/'+b.owner+'/score').set((localPlayers[b.owner].score || 0) + 1); 
-                                roomRef.child('players/'+b.owner+'/coins').set((localPlayers[b.owner].coins || 0) + 5); 
+                                
+                                boosters.push({x: p.x, y: p.y, type: 'COIN'}); // DROP DE MONEDA
+
                                 currentExplosions = createExplosion(p.x, p.y, p.color); killData = { killer: localPlayers[b.owner].name, victim: p.name, color: localPlayers[b.owner].color }; 
                                 db.ref('hallOfFame/'+localPlayers[b.owner].name).update({ kills: firebase.database.ServerValue.increment(1), color: localPlayers[b.owner].color });
                                 setTimeout(() => resetPlayer(id), 4000); 
@@ -504,13 +511,19 @@
                 map.hazards.forEach(h => { if(h.type === 'coffee' && Math.hypot(p.x-h.x, p.y-h.y) < h.r) actSpd *= 0.4; if(h.type === 'belt' && p.x>h.x && p.x<h.x+h.w && p.y>h.y && p.y<h.y+h.h) { roomRef.child('players/'+id).update({x: p.x+h.dx, y: p.y+h.dy, targetX: p.x+h.dx, targetY: p.y+h.dy}); } });
                 
                 if(dist > actSpd) { let nx = p.x + (dx/dist)*actSpd, ny = p.y + (dy/dist)*actSpd; if(!checkCollision(nx, p.y, p.radius)) p.x = nx; if(!checkCollision(p.x, ny, p.radius)) p.y = ny; roomRef.child('players/'+id).update({x: p.x, y: p.y}); }
-                if(p.x < zoneSize || p.x > canvas.width-zoneSize || p.y < zoneSize || p.y > canvas.height-zoneSize) { roomRef.child('players/'+id).update({dead: true, hp: 0, x:0, y:0}); currentExplosions = createExplosion(p.x, p.y, p.color); killData = { killer: "LA ZONA", victim: p.name, color: "#fff" }; setTimeout(() => resetPlayer(id), 4000); }
+                
+                if(p.x < zoneSize || p.x > canvas.width-zoneSize || p.y < zoneSize || p.y > canvas.height-zoneSize) { 
+                    roomRef.child('players/'+id).update({dead: true, hp: 0, x:0, y:0}); boosters.push({x: p.x, y: p.y, type: 'COIN'}); 
+                    currentExplosions = createExplosion(p.x, p.y, p.color); killData = { killer: "LA ZONA", victim: p.name, color: "#fff" }; setTimeout(() => resetPlayer(id), 4000); 
+                }
                 
                 for(let bi = boosters.length - 1; bi >= 0; bi--) {
                     let b = boosters[bi];
                     if(Math.hypot(p.x - b.x, p.y - b.y) < p.radius + 15) { 
                         if(b.type === '🛡️') roomRef.child('players/'+id+'/shield').set(true); 
-                        if(b.type === '☕') roomRef.child('players/'+id+'/speedBoost').set(Date.now() + 6000); 
+                        else if(b.type === '☕') roomRef.child('players/'+id+'/speedBoost').set(Date.now() + 6000); 
+                        else if(b.type === '💊') roomRef.child('players/'+id+'/hp').set(Math.min(p.maxHp, p.hp + 50));
+                        else if(b.type === 'COIN') roomRef.child('players/'+id+'/coins').set((p.coins || 0) + 5);
                         boosters.splice(bi, 1); 
                     }
                 }
@@ -519,7 +532,7 @@
         }
 
         // ==========================================
-        // 8. RENDER LOOP Y MINIMAPA
+        // 8. RENDER LOOP Y DIBUJOS 
         // ==========================================
         function drawPlayerWeapon(pCtx, w, rad) {
             pCtx.fillStyle = "#fff";
@@ -548,7 +561,22 @@
             const kf = document.getElementById('killfeed'); kf.innerHTML = ""; killfeedData = killfeedData.filter(k => k.expire > Date.now()); killfeedData.forEach(k => { let d = document.createElement('div'); d.className = 'kf-item'; d.innerHTML = k.text; kf.appendChild(d); });
 
             ctx.fillStyle = "rgba(255, 0, 0, 0.1)"; ctx.fillRect(0, 0, canvas.width, zoneSize); ctx.fillRect(0, canvas.height-zoneSize, canvas.width, zoneSize); ctx.fillRect(0, zoneSize, zoneSize, canvas.height-zoneSize*2); ctx.fillRect(canvas.width-zoneSize, zoneSize, zoneSize, canvas.height-zoneSize*2); ctx.strokeStyle = "#ff4444"; ctx.lineWidth = 2; ctx.strokeRect(zoneSize, zoneSize, canvas.width-zoneSize*2, canvas.height-zoneSize*2);
-            boosters.forEach(b => { ctx.shadowBlur = 15; ctx.shadowColor = b.type === '💊' ? '#ff4757' : '#fff'; ctx.fillStyle = "rgba(255, 255, 255, 0.9)"; ctx.beginPath(); ctx.arc(b.x, b.y, 14, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur = 0; ctx.fillStyle = "#000"; ctx.font = "16px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(b.type, b.x, b.y+1); });
+            
+            boosters.forEach(b => { 
+                if(b.type === 'COIN') {
+                    let scale = Math.sin(Date.now() / 150); 
+                    let img = scale > 0 ? coinFront : coinBack;
+                    let w = 24 * Math.abs(scale); let h = 24; 
+
+                    ctx.shadowBlur = 10; ctx.shadowColor = '#ffcc00';
+                    if(img.complete) { ctx.drawImage(img, b.x - w/2, b.y - h/2, w, h); } 
+                    else { ctx.fillStyle = "gold"; ctx.beginPath(); ctx.arc(b.x, b.y, 10 * Math.abs(scale), 0, Math.PI*2); ctx.fill(); }
+                    ctx.shadowBlur = 0;
+                } else {
+                    ctx.shadowBlur = 15; ctx.shadowColor = b.type === '💊' ? '#ff4757' : '#fff'; ctx.fillStyle = "rgba(255, 255, 255, 0.9)"; ctx.beginPath(); ctx.arc(b.x, b.y, 14, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur = 0; ctx.fillStyle = "#000"; ctx.font = "16px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(b.type, b.x, b.y+1); 
+                }
+            });
+            
             bullets.forEach(b => { ctx.fillStyle = b.color; ctx.beginPath(); ctx.arc(b.x, b.y, b.size, 0, Math.PI*2); ctx.fill(); });
 
             for(let id in localPlayers) {
@@ -571,8 +599,8 @@
 
             particles.forEach((p, i) => { p.x += p.vx; p.y += p.vy; p.life -= 0.03; ctx.fillStyle = p.color; ctx.globalAlpha = Math.max(0, p.life); ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, Math.PI*2); ctx.fill(); if(p.life <= 0) particles.splice(i, 1); });
             ctx.globalAlpha = 1; 
-
-            // MINIMAPA (Fijo Arriba a la Derecha)
+            
+            // MINIMAPA 
             let mmW = 150, mmH = 150 * (canvas.height/canvas.width);
             let mmX = canvas.width - mmW - 10, mmY = 10;
             ctx.fillStyle = 'rgba(10,10,10,0.85)'; ctx.fillRect(mmX, mmY, mmW, mmH);
